@@ -51,11 +51,13 @@
 
 #ifdef VSTUDIO
 #define MSLEEP(a) Sleep(a)
+#define CLOSE(a) closesocket(a)
 #include <windows.h>
 #include <winbase.h>
 //#include <winsock2.h>
 #else
 #define MSLEEP(a) usleep(a*1000)
+#define CLOSE(a) close(a)
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -101,9 +103,9 @@ struct sockaddr_in gsi;
 #ifdef VSTUDIO
 WSADATA global_wsa;
 void winsock_done() {
-  printf("\nWaiting a sec before cleaning up winsock...");
-  Sleep(1000);
-  printf(" done.\n");
+//  printf("\nWaiting a sec before cleaning up winsock...");
+//  Sleep(1000);
+//  printf(" done.\n");
   WSACleanup();
 }
 void winsock_init() {
@@ -168,6 +170,20 @@ int wait_for_ack() {
   return validated;
 }
 
+void make_nonblocking() {
+  int good=1;
+#ifdef VSTUDIO
+  int nb=1;
+  if(ioctlsocket(gsock,FIONBIO,&nb)==SOCKET_ERROR) { good=0; }
+#else
+  if(fcntl(gsock,F_SETFL,O_NONBLOCK)==-1) { good=0; }
+#endif
+  if(!good) {
+    printf("nonblocking mode failure.  using async mode...\n");
+    gbound=0;
+  }
+}
+
 main(int argc, char *argv[]) {
   int i,tmp,butt=0;
   int channy;
@@ -201,7 +217,7 @@ main(int argc, char *argv[]) {
   if(bind(gsock,(struct sockaddr*)&gsi,sizeof(gsi)>=0)) 
   {
     gbound=1;
-    fcntl(gsock,F_SETFL,O_NONBLOCK);
+    make_nonblocking();
   } else {
     printf("Socket already bound; using async mode\n");
   }
@@ -217,7 +233,7 @@ main(int argc, char *argv[]) {
 
   wait_for_ack();
 
-  close(gsock);
+  CLOSE(gsock);
 #ifdef VSTUDIO
   winsock_done();
 #endif
