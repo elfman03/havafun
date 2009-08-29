@@ -1,6 +1,6 @@
 /*
  * HavaFun code component
- * Code to change channels or push buttons on the Hava media streamer
+ * Header file describing the API that talks to the Hava
  *
  * Copyright (C) 2009 Chris Elford
  *
@@ -41,78 +41,108 @@
 #ifndef HAVA_UTIL_H_
 #define HAVA_UTIL_H_ 1
 
-typedef struct frameheader {
-  unsigned char  cmdhi;
-  unsigned char  cmdlo;
-  unsigned char  seqhi;             // high order byte of frame sequence no
-  unsigned char  seqlo;             // low order byte of frame sequence no
-  unsigned short s4;
-  unsigned short s6;
-  unsigned short s8;
-  unsigned char  c10;
-  unsigned char  stream_remaining;  // countdown to 0 then send continue packet to hava
-  unsigned short c12;
-  unsigned short c14;
-  unsigned char  payload;           // the payload starts here
-} frameheader ;
+#ifdef _MSC_VER
+#define VSTUDIO
+#endif
 
-// A MPEG file header
-unsigned char mpeg_hdr[51]={0x00,0x00,0x01,0xba,0x44,0x00,0x04,0x00,
-                            0x05,0xb1,0x09,0x27,0xc3,0xf8,0x00,0x00,
-                            0x01,0xbb,0x00,0x0c,0x80,0xc4,0xe1,0x04,
-                            0xe1,0xff,0xe0,0xe0,0xe8,0xc0,0xc0,0x20,
-                            0x00,0x00,0x01,0xe0,0x07,0xec,0x80,0xc1,
-                            0x0d,0x31,0x00,0x01,0x51,0xe9,0x11,0x00,
-                            0x01,0x22,0xfb};
+#ifdef VSTUDIO
+#define MSLEEP(a) Sleep(a)
+#define CLOSE(a) closesocket(a)
+#include <windows.h>
+#include <winbase.h>
+#else
+#define MSLEEP(a) usleep(a*1000)
+#define CLOSE(a) close(a)
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <fcntl.h>
+#endif
 
-// Initialization packet
-unsigned char init_pkt[24]={ 0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x0f,
-                             0x00,0x1d,0x6a,0xe1,0x2a,0x93,0x00,0x00,
-                             0x00,0x00,0x00,0x09,0x00,0x1f,0x06,0xd9, };
+typedef struct Hava {
+  int sock;                  // the socket
+  int bound;                 // is the socket bound?
+  struct sockaddr_in si;     // sockaddr structure with havas IP addr
 
-// Basic form of a channel changing packet
-unsigned char channel_set[32]= { 0x03,0x07,0xfa,0xce,0x00,0x00,0x00,0x14,
-                                 0x00,0x00,0x00,0x10,0x00,0x00,0x06,0x69,
-                                 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x08, 
-                                 0xde,0xad,0xbe,0xef, 
-                                 0x00,0x00,0x00,0x03 };
-#define CHANNEL_OFFSET 24
+  unsigned char *mypkt_cont; // My moddable copy of a continuation packet
+  unsigned char *mypkt_butt; // My moddable copy of a button packet
+  unsigned char *mypkt_chan; // My moddable copy of a channel packet
 
-// Basic form of a remote control button push
-unsigned char button_push[56]={ 0x03,0x07,0xfa,0xce,0x00,0x00,0x00,0x14,
-                                0x00,0x00,0x00,0x0b,0x00,0x00,0x08,0x23,
-                                0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x20,
-                                0x08,0x08,0x00,0x01,0x00,0x01,0x00,0x00,
-                                0x00,0x00,0x00,0x0f,0x00,0x10,0x00,0x00,
-                                0x00,0x00,0x00,0x02,0x00,0x00,0x00,0x00,
-                                0x07,0x01,0x33,0x07,0x01,0x80,0x00,0x00 };
-#define BUTTON_OFFSET 52
-#define B_POW    0x01
-#define B_POWON  0x02
-#define B_POWOFF 0x03
-#define B_SEL    0x2a
+  unsigned char *buf;        // the input buffer from the hava
+ 
+  unsigned short vid_seq;    // video sequence number
+  int vid_starting;          // Is video just starting
+  time_t vid_endtime;        // timeofday when I should stop recording
+  void (*vid_callback)(const char *buf,int len);  // hava_util calls this w/pkts
+} Hava;
 
-// Basic form of a start packet
-unsigned char start_pkt[8]={ 0x03,0x0c,0xfe,0xed,0x00,0x00,0x00,0x02, };
+// takes target Hava device IP
+// returns a Hava connection structure
+//
+extern Hava *Hava_alloc(const char *havaip);
 
-// Basic form of a continuation packet
-unsigned char continue_pkt[22]= { 0x03,0x03,0xff,0xff,0x0f,0xb1,0xda,0xbc,
-                                  0x00,0x03,0x92,0x94,0x00,0x00,0x74,0x90,
-                                  0x20,0x21,0x21,0x04,0x00,0x00, };
-//                                  0x0f,0x10,0x10,0x04,0x00,0x00, };
-#define SEQ_OFFSET 2
+//
+// use Hava_isbound() to see if it really bound to the Hava local port
+//
+extern int Hava_isbound(Hava *hava);
 
-#define HAVA_MAXTRIES 8
-#define HAVA_BUFFSIZE 4096
-extern int gsock;
-extern int gbound;
-extern struct sockaddr_in gsi;
-extern frameheader *gframe;
-extern unsigned char *gbuf;
+//
+// Define timeofday when I should stop recording
+//
+extern void Hava_set_videoendtime(Hava *hava, time_t et);
 
-#define SEND(AAA) { /* printf("send %d bytes\n",sizeof(AAA)); */ \
-                    tmp=sendto(gsock,AAA,sizeof(AAA),0,(struct sockaddr*)&gsi,\
-                               sizeof(gsi)); \
-                    assert(tmp==sizeof(AAA)); \
-                  }
+//
+// Define function pointer to app function that will eat video data (or null)
+//
+extern void Hava_set_videocb(Hava *hava, void (*vcb)(const char *buf,int len));
+
+//
+// Startup a hava app...  call it first (for winsock initialization)
+//
+extern void  Hava_startup();
+
+//
+// Finishup a hava app...  call it last (for winsock cleanup)
+//
+extern void  Hava_finishup();
+
+//
+// Close the open sockets and free stuff
+//
+extern void Hava_close(Hava *hava);
+
+#define HAVA_MAGIC_RECORD   0x0000
+#define HAVA_MAGIC_CHANBUTT 0xface
+//
+// Loop for a while
+// Use HAVA_MAGIC_RECORD for video capture
+// Use HAVA_MAGIC_CHANBUTT for channel changes and button presses
+//
+extern int Hava_loop(Hava *hava, unsigned short magic);
+
+// Button IDs -- use with Hava_sendcmd()
+//
+#define HAVA_BUTT_POW    0x01
+#define HAVA_BUTT_POWON  0x02
+#define HAVA_BUTT_POWOFF 0x03
+#define HAVA_BUTT_SEL    0x2a
+
+// Hava commands -- use with Hava_sendcmd()
+//
+#define HAVA_INIT        0
+#define HAVA_START_VIDEO 1
+#define HAVA_CONT_VIDEO  2
+#define HAVA_CHANNEL     3
+#define HAVA_BUTTON      4
+
+//
+// Send a command! (INIT, START_VIDEO, CONT_VIDEO, CHANNEL, BUTTON)
+//
+// CONT_VIDEO extra is sequence_number (video streaming) ... internal use only
+// CHANNEL extra is channel number (0-65535) 
+// BUTTON extra is button id
+//
+extern void Hava_sendcmd(Hava *hava, int cmd, unsigned short extra);
+
 #endif
