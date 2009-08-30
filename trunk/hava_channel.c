@@ -48,15 +48,54 @@ Usage() {
   fprintf(stderr,"Usage: hava_channel <hava_dotform_ipaddr> <target_channel_number>\n");
   fprintf(stderr,"       hava_channel <hava_dotform_ipaddr> {POW,POWON,POWOFF,SEL}\n");
 #ifdef VSTUDIO
-  winsock_done();
+  Hava_finishup();
 #endif
   exit(1);
 }
 
-main(int argc, char *argv[]) {
+#ifdef HAVA_NOWIN
+int argc;
+#define MAXARG 3
+char *argv[MAXARG];
+void build_argc_argv(LPSTR args) {
+  FILE *f;
+  int i,len;
+//  f=fopen("yo","w");
+//  fprintf(f,"args=%s\n",args);
+  argc=1;
+  argv[0]=0;
+  len=strlen(args);
+  if(len) { 
+    argv[1]=malloc(len+1);
+    argc++;
+    for(i=0;i<=len;i++) {
+      argv[1][i]=args[i];
+      if(args[i]==' ') {
+        argv[1][i]=0;
+        if(argc<MAXARG) {
+          argv[argc]=&argv[1][i+1];
+        }
+        argc++;
+      }
+    }
+  }
+//  fprintf(f,"argc=%d arg2=%s arg3=%s\n",argc,argv[1],argv[2]);
+//  fclose(f);
+}
+int WinMain(HINSTANCE junk1, HINSTANCE junk2, LPSTR args, int junk3)
+#else
+main(int argc, char *argv[]) 
+#endif
+{
   Hava *hava;
   int channy;
   unsigned short butt=0;
+
+#ifdef HAVA_NOWIN
+  build_argc_argv(args);
+#endif
+
+  Hava_startup();
 
   if(argc!=3) { Usage(); }
 

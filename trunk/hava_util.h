@@ -98,6 +98,11 @@ extern void Hava_set_videoendtime(Hava *hava, time_t et);
 extern void Hava_set_videocb(Hava *hava, void (*vcb)(const char *buf,int len));
 
 //
+// Returns the current time in seconds (for computing a record endtime)
+//
+extern unsigned long Hava_getnow();
+
+//
 // Startup a hava app...  call it first (for winsock initialization)
 //
 extern void  Hava_startup();

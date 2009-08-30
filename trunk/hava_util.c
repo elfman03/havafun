@@ -121,26 +121,48 @@ void Hava_close(Hava *hava) {
 
 void Hava_finishup() {
 #ifdef VSTUDIO
-  WSADATA global_wsa;
   WSACleanup();
 #endif
 }
 
 void Hava_startup() {
 #ifdef VSTUDIO
-  int ret=WSAStartup(0x202,&global_wsa);
+  WSADATA the_wsa;
+  int ret=WSAStartup(0x202,&the_wsa);
   if(ret!=0) {
     fprintf(stderr,"ERROR INITIALIZING WINSOCK\n");
-    winsock_done();
+    Hava_finishup();
     exit(1);
   }
 #endif
 }
 
-int check_for_end(Hava *hava) {
+unsigned long Hava_getnow() {
+#ifdef VSTUDIO
+  FILETIME times;
+  unsigned __int64 t;
+  GetSystemTimeAsFileTime(&times);
+  t=times.dwHighDateTime;
+  t=(t<<32) | times.dwLowDateTime;
+  return t/1000000;
+#else
   struct timeval tv;
   gettimeofday(&tv,0);
-  if(tv.tv_sec > hava->vid_endtime) {
+  return (unsigned long)tv.tv_sec;
+#endif
+}
+
+int check_for_end(Hava *hava) {
+  //
+  // First check run forever mode
+  //
+  if(!hava->vid_endtime) {
+    return 0;
+  }
+  //
+  // Now handle the timed mode
+  //
+  if(Hava_getnow() > hava->vid_endtime) {
     return 1;
   }
   return 0;
