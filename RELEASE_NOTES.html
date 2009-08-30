@@ -1,0 +1,83 @@
+<head>
+<title>Hava Fun Release Notes</title>
+</head>
+<html>
+<h1>Hava Fun</h1>
+Purpose:  Tell a hava streaming device to change channels or press buttons or send a high quality video stream.
+<p>
+For testing purposes, this package includes several tools and scripts.
+<ul>
+<li> <b>Linux</b>
+<ul>
+<li> hava_channel -- Change channels or press key buttons (e.g., power)
+<li> hava_record -- Capture the high quality mpeg stream from hava
+<li> example_live.sh -- Linux example that views mpeg stream
+<li> example_record.sh -- Linux example that records, indexs, transcodes
+<li> example_combined.sh -- Linux example that changes channels then views
+</ul>
+<li> <b>Windows</b>
+<ul>
+<li> hava_channel.exe -- Change channels or press key buttons (e.g., power)
+<li> hava_channel_nowin.exe -- Same as hava_channel.exe but without a console
+<li> example_live.cmd -- BROKEN!!!  Windows example that TRIES to view mpeg stream 
+</ul>
+</ul>
+<h2>Prerequisites:</h2>
+<ul>
+<li> Hava with recent firmware (we will know more later)
+<ul>
+<li> Make sure you can play and change channels in the official Hava windows tool.  Hava Fun does not perform configuration of the Hava; it just pokes at it a bit.
+</ul>
+<li> For recording/viewing:
+<a href="http://mplayerhq.hu">MPlayer/Mencoder</a> installed.
+<ul>
+<li> NOTE: Windows recording/viewing will not work...  Out of order packets require making a reorder buffer to resolve.  Linux is working much better without a reorder buffer.
+</ul>
+</ul>
+<h2>Hava Channel Tool</h2>
+<xmp>
+Usage: hava_channel <hava_dotform_ipaddr> <target_channel_number>
+       hava_channel <hava_dotform_ipaddr> {POW,POWON,POWOFF,SEL}
+</xmp>
+The first one lets you choose a channel.  Unless you are playing a video stream at the same time that you invoke hava_channel, you should get back an ack=1.  If you are playing a video stream at the same time, we cannot check for acknowledgements..
+<h2>Hava Record Tool</h2>
+<xmp>
+Usage: hava_record <hava_dotform_ipaddr> <duration_sec> <tgt_mpeg>
+       hava_record <hava_dotform_ipaddr> <duration_sec> -
+</xmp>
+The first one lets you record to a file.  This file will not be indexed and will start in the middle of a frame (it will play back with mplayer but little else.  Mencoder can reindex it so that it can play in more places...
+<p>
+The second one does the same thing but sends the output to stdout for piping into mplayer or mencoder.  See the example scripts.
+
+<h1>Long term goals: </h1>
+
+The end target use is to use the hava_util.h interface to extend a video streaming program like MythTV to support Hava (I use it today in MythTV for channel changing and hope to start using it for video capture).  
+To use, you need to have a hava device on your local network and determine its
+IP address.  Then use one of the following forms to tell the hava what to do.
+
+<h1>Release Details</h1>
+<hr>
+<h2>Release alpha2 -- 8/30/2009</h2>
+First version with record capability.  Added some sample play scripts.  
+<p><b>Fixed:</b>
+<ul>
+<li> Windows channel changing without a console window popup (sagetv)
+<li> Modularization to faciliate creating a "clean" interface to Hava
+</ul>
+<p><b>Known issues:</b>
+<ul>
+<li> Some channel change issues seen... (havas that aren't connected to component input maybe?
+<li> Realizing that I need to create an out of order buffer for video packets and/or some way to deal with lost packets
+<li> MythTV module
+<li> Autodetect a single hava on local network instead of using IP address
+<li> Need to think about doing something if channel change acks are lost
+</ul>
+<p>
+Tested on Windows XP, and Ubuntu 8.10 connecting to a Hava Wireless HD (hardware version 1003100, firmware version 270.322-32).   The Hava Wireless HD was connected to component (YPbPr) inputs and controls a Dish vip211 receiver.
+<hr>
+<h2>Release alpha1 -- 8/22/2009</h2>
+
+Initial version of windows and linux binaries corresponds to SVN checkin number 4.  I tried to create an alpha1 tag for it but remain fairly inept with svn
+<p>
+Tested on Windows XP, and Ubuntu 8.10 connecting to a Hava Wireless HD (hardware version 1003100, firmware version 270.322-32).   The Hava Wireless HD was connected to component (YPbPr) inputs and controls a Dish vip211 receiver.
+</html>

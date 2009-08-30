@@ -41,6 +41,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <fcntl.h>
 #include <assert.h>
 #include "hava_util.h"
 
@@ -48,18 +49,20 @@ FILE *gof;
 
 void my_callback(const char *buf,int len) {
   fwrite(buf,len,1,gof);
+//  if(gof==stdout) { fflush(gof); }
   return;
 }
 
 Usage() {
   fprintf(stderr,"Usage: hava_record <hava_dotform_ipaddr> <duration_sec> <tgt_mpeg>\n");
+  fprintf(stderr,"       hava_record <hava_dotform_ipaddr> <duration_sec> -\n");
   Hava_finishup();
   exit(1);
 }
 
 main(int argc, char *argv[]) {
   Hava *hava;
-  int tis=-1;
+  int tmp,tis=-1;
   struct timeval tv;
 
   Hava_startup();
@@ -67,17 +70,31 @@ main(int argc, char *argv[]) {
   if(argc!=4) { Usage(); }
 
   tis=atoi(argv[2]);
-  if(tis<=0) { Usage(); }
+  if(tis<0) { Usage(); }
 
-  gof=fopen(argv[3],"wb");
+  // open output file (pipeout with -)
+  //
+  if(argv[3][0]=='-' && argv[3][1]==0) {
+#ifdef VSTUDIO
+    tmp=fileno(stdout);
+    if(!isatty(tmp))
+    _setmode(tmp,_O_BINARY);
+#endif
+    gof=stdout;
+  } else {
+    gof=fopen(argv[3],"wb");
+  }
   assert(gof);
 
   hava=Hava_alloc(argv[1]);
   assert(Hava_isbound(hava));
   Hava_set_videocb(hava, &my_callback);
 
-  gettimeofday(&tv,0);
-  Hava_set_videoendtime(hava,tv.tv_sec+tis);
+  // zero second tis means go forever (no set of endtime)
+  //
+  if(tis) { 
+    Hava_set_videoendtime(hava,Hava_getnow()+tis);
+  }
 
   fprintf(stderr,"Sending Init and video start request to %s\n",argv[1]);
   Hava_sendcmd(hava, HAVA_INIT, 0); 
