@@ -46,7 +46,10 @@
 
 Usage() {
   fprintf(stderr,"Usage: hava_channel <hava_dotform_ipaddr> <target_channel_number>\n");
-  fprintf(stderr,"       hava_channel <hava_dotform_ipaddr> {POW,POWON,POWOFF,SEL}\n");
+  fprintf(stderr,"       hava_channel <hava_dotform_ipaddr> {POW,POWON,POWOFF,SEL}\n\n");
+  fprintf(stderr,"NOTE: If you use '-' for the ipaddr, it will try to autodetect\n");
+  fprintf(stderr,"      This mode is not recommended but can be useful for testing\n");
+  fprintf(stderr,"      It will crash if you are using the hava player at the same time.\n");
 #ifdef VSTUDIO
   Hava_finishup();
 #endif
@@ -116,13 +119,15 @@ main(int argc, char *argv[])
     if(channy>65535) { Usage(); }
   }
   
-  hava=Hava_alloc(argv[1]);
+  hava=Hava_alloc(argv[1],0);
   //
   // Should work even unbound but cannot check ack status
   //
   // assert(Hava_isbound(hava));
 
   Hava_sendcmd(hava, HAVA_INIT, 0); 
+  if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_INIT,0); }
+
   if(butt) {
     printf("Sending Init and button=%s request to %s\n",argv[2],argv[1]);
     Hava_sendcmd(hava, HAVA_BUTTON, butt); 
@@ -130,10 +135,7 @@ main(int argc, char *argv[])
     printf("Sending Init and channel=%d(0x%x) to %s\n",channy,channy,argv[1]);
     Hava_sendcmd(hava, HAVA_CHANNEL, (unsigned short)channy); 
   }
-
-  if(Hava_isbound(hava)) {
-    Hava_loop(hava,HAVA_MAGIC_CHANBUTT);
-  }
+  if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_CHANBUTT,0); }
 
   Hava_close(hava);
   Hava_finishup();
