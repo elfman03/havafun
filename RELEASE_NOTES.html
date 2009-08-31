@@ -9,6 +9,7 @@ For testing purposes, this package includes several tools and scripts.
 <ul>
 <li> <b>Linux</b>
 <ul>
+<li> hava_info -- Diagnogstic tool to print out some info hava reports
 <li> hava_channel -- Change channels or press key buttons (e.g., power)
 <li> hava_record -- Capture the high quality mpeg stream from hava
 <li> example_live.sh -- Linux example that views mpeg stream
@@ -17,6 +18,7 @@ For testing purposes, this package includes several tools and scripts.
 </ul>
 <li> <b>Windows</b>
 <ul>
+<li> hava_info.exe -- Diagnogstic tool to print out some info hava reports
 <li> hava_channel.exe -- Change channels or press key buttons (e.g., power)
 <li> hava_channel_nowin.exe -- Same as hava_channel.exe but without a console
 <li> example_live.cmd -- BROKEN!!!  Windows example that TRIES to view mpeg stream 
@@ -34,16 +36,30 @@ For testing purposes, this package includes several tools and scripts.
 <li> NOTE: Windows recording/viewing will not work...  Out of order packets require making a reorder buffer to resolve.  Linux is working much better without a reorder buffer.
 </ul>
 </ul>
+<h2>Hava Info Tool</h2>
+<xmp>
+Usage: hava_info
+</xmp>
+This dumps the periodic broadcast packet from your hava and the response to the initialize request that we send to hava.  If you have issues, please post the result of running this.
+
 <h2>Hava Channel Tool</h2>
 <xmp>
 Usage: hava_channel <hava_dotform_ipaddr> <target_channel_number>
        hava_channel <hava_dotform_ipaddr> {POW,POWON,POWOFF,SEL}
+
+NOTE: If you use '-' for the ipaddr, it will try to autodetect
+      This mode is not recommended but can be useful for testing.  It will crash if you are using the hava player at the same time.
 </xmp>
 The first one lets you choose a channel.  Unless you are playing a video stream at the same time that you invoke hava_channel, you should get back an ack=1.  If you are playing a video stream at the same time, we cannot check for acknowledgements..
 <h2>Hava Record Tool</h2>
 <xmp>
 Usage: hava_record <hava_dotform_ipaddr> <duration_sec> <tgt_mpeg>
-       hava_record <hava_dotform_ipaddr> <duration_sec> -
+
+NOTE: If you use '-' for the <tgt_mpg>, it will send the output to stdout
+      This is recommended for piping into mplayer/mencoder
+
+NOTE: If you use '-' for the ipaddr, it will try to autodetect
+      This is not recommended but can be useful for testing
 </xmp>
 The first one lets you record to a file.  This file will not be indexed and will start in the middle of a frame (it will play back with mplayer but little else.  Mencoder can reindex it so that it can play in more places...
 <p>
@@ -67,7 +83,7 @@ First version with record capability.  Added some sample play scripts.
 <p><b>Known issues:</b>
 <ul>
 <li> Some channel change issues seen... (havas that aren't connected to component input maybe?
-<li> Realizing that I need to create an out of order buffer for video packets and/or some way to deal with lost packets
+<li> Realizing that I need to create an out of order buffer for video packets and/or some way to deal with lost packets...  Probably a quality backoff mechanism
 <li> MythTV module
 <li> Autodetect a single hava on local network instead of using IP address
 <li> Need to think about doing something if channel change acks are lost

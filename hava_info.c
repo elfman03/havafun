@@ -1,6 +1,6 @@
 /*
  * HavaFun code component
- * Code to capture the mpeg stream
+ * Code to dump some diagnostic responses from Hava
  *
  * Copyright (C) 2009 Chris Elford
  *
@@ -41,72 +41,32 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <fcntl.h>
 #include <assert.h>
 #include "hava_util.h"
 
-FILE *gof;
-
-void my_callback(const char *buf,int len) {
-  fwrite(buf,len,1,gof);
-//  if(gof==stdout) { fflush(gof); }
-  return;
-}
-
 Usage() {
-  fprintf(stderr,"Usage: hava_record <hava_dotform_ipaddr> <duration_sec> <tgt_mpeg>\n\n");
-  fprintf(stderr,"NOTE: If you use '-' for the <tgt_mpg>, it will send the output to stdout\n");
-  fprintf(stderr,"      This is recommended for piping into mplayer/mencoder\n\n");
-  fprintf(stderr,"NOTE: If you use '-' for the ipaddr, it will try to autodetect\n");
-  fprintf(stderr,"      This is not recommended but can be useful for testing\n");
+  fprintf(stderr,"Usage: hava_info\n");
+#ifdef VSTUDIO
   Hava_finishup();
+#endif
   exit(1);
 }
 
-main(int argc, char *argv[]) {
+main(int argc, char *argv[]) 
+{
   Hava *hava;
-  int tmp,tis=-1;
-  struct timeval tv;
 
   Hava_startup();
 
-  if(argc!=4) { Usage(); }
+  if(argc!=1) { Usage(); }
 
-  tis=atoi(argv[2]);
-  if(tis<0) { Usage(); }
-
-  // open output file (pipeout with -)
-  //
-  if(argv[3][0]=='-' && argv[3][1]==0) {
-#ifdef VSTUDIO
-    tmp=fileno(stdout);
-    if(!isatty(tmp))
-    _setmode(tmp,_O_BINARY);
-#endif
-    gof=stdout;
-  } else {
-    gof=fopen(argv[3],"wb");
-  }
-  assert(gof);
-
-  hava=Hava_alloc(argv[1],0);
+  hava=Hava_alloc("-",1);
   assert(Hava_isbound(hava));
-  Hava_set_videocb(hava, &my_callback);
 
-  // zero second tis means go forever (no set of endtime)
-  //
-  if(tis) { 
-    Hava_set_videoendtime(hava,Hava_getnow()+tis);
-  }
+  printf("Watching for info\n");
 
-  fprintf(stderr,"Sending Init and video start request to %s\n",argv[1]);
   Hava_sendcmd(hava, HAVA_INIT, 0); 
-  Hava_loop(hava,HAVA_MAGIC_INIT,0); 
-
-  Hava_sendcmd(hava, HAVA_START_VIDEO, 0); 
-  Hava_loop(hava,HAVA_MAGIC_RECORD,0);
-
-  fclose(gof);
+  Hava_loop(hava,HAVA_MAGIC_INIT,1); 
 
   Hava_close(hava);
   Hava_finishup();

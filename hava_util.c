@@ -49,11 +49,13 @@
 #include "hava_util_internals.h"
 
 void make_nonblocking();
-void print_the_packet(Hava *h,int len);
+void print_the_packet(Hava *h,int len,struct in_addr addr);
 
-Hava *Hava_alloc(const char *havaip) {
+Hava *Hava_alloc(const char *havaip,int verbose) {
+  struct sockaddr_in si;
   Hava *h;
-  int i;
+  int blocking=0,
+      i;
   h=(Hava*)malloc(sizeof(Hava));
   assert(h);
   for(i=0;i<sizeof(Hava);i++) {
@@ -82,16 +84,37 @@ Hava *Hava_alloc(const char *havaip) {
   assert(h->sock>=0); 
 
   h->si.sin_family=AF_INET;
-  h->si.sin_addr.s_addr=inet_addr(havaip);
+  //
+  // Check if want to autodetect IP address
+  //
+  if(strcmp(havaip,"-")) {
+    h->si.sin_addr.s_addr=inet_addr(havaip);
+  } else {
+    h->si.sin_addr.s_addr=INADDR_ANY;
+  }
   h->si.sin_port=htons(1778);
-  if(bind(h->sock,(struct sockaddr*)&h->si,sizeof(h->si)>=0)) 
+
+  for(i=0;i<sizeof(si);i++) { ((char*)&si)[i]=0; }
+  si.sin_family=AF_INET;
+  si.sin_addr.s_addr=INADDR_ANY;
+  si.sin_port=htons(1778);
+  if(bind(h->sock,(struct sockaddr*)&si,sizeof(si))>=0) 
   {
     h->bound=1;
-    make_nonblocking(h);
+    fprintf(stderr,"Bind successful!\n");
+    if(!blocking) {
+      make_nonblocking(h);
+    }
   } else {
     fprintf(stderr,"Socket already bound; using async mode\n");
   }
 
+  // If want to autodetect IP address
+  //
+  if(h->si.sin_addr.s_addr==INADDR_ANY) {
+    assert(h->bound);
+    Hava_loop(h, HAVA_MAGIC_INFO, verbose);
+  }
   return h;
 }
 
@@ -229,40 +252,67 @@ int process_video_packet(Hava *hava, int len) {
   return retval;
 }
 
-int Hava_loop(Hava *hava, unsigned short magic) {
+int Hava_loop(Hava *hava, unsigned short magic, int verbose) {
   struct sockaddr_in so;
-  int i,
+  int printpkt=0,
+      sleeptime=50,
+      wasvideo=0,
       ct,
       tmp,
       len,
       done=0;
   unsigned short pkt;
 
+#ifdef DEBUG_MODE
+  printpkt=1;
+#endif
+
+  if(magic==HAVA_MAGIC_INFO) { sleeptime=500; }
+
   for(ct=0;ct<HAVA_MAXTRIES;ct++) {
     tmp=sizeof(so);
+    hava->buf[2]=0;
+    hava->buf[3]=0;
+    so.sin_addr.s_addr=INADDR_ANY;
     len=recvfrom(hava->sock,hava->buf, HAVA_BUFFSIZE, 
                  0,(struct sockaddr*)&so,&tmp);
     assert(tmp==sizeof(so));
-
-    pkt=hava->buf[2]<<8 | hava->buf[3];
-    if(len==4 && magic && pkt==magic) {
-      done=1;
-      ct=HAVA_MAXTRIES;
+    if(len==300 && magic==HAVA_MAGIC_INFO) {
+      hava->si.sin_addr.s_addr=so.sin_addr.s_addr;
     }
-    if(len>=0) {
-      ct=0;
-      i=process_video_packet(hava, len);
-      if(i==3) { 
-        done=1; 
+    if(so.sin_addr.s_addr==hava->si.sin_addr.s_addr) {
+      pkt=hava->buf[2]<<8 | hava->buf[3];
+      if(len==336 && magic==HAVA_MAGIC_INIT) {
+        if(verbose) { printpkt=1; }
+        done=1;
         ct=HAVA_MAXTRIES;
       }
-#ifdef DEBUG_MODE
-      if(!i) { print_the_packet(hava,len); }
-#endif
-    } 
-    else 
-    {
-      MSLEEP(50);
+      if(len==300 && magic==HAVA_MAGIC_INFO) {
+        if(verbose) { printpkt=1; }
+        done=1;
+        ct=HAVA_MAXTRIES;
+      }
+      if(len==4 && magic && pkt==magic) {
+        done=1;
+        ct=HAVA_MAXTRIES;
+      }
+      if(len>=0 && !done) {
+        ct=0;
+        wasvideo=process_video_packet(hava, len);
+        if(wasvideo==3) { 
+          done=1; 
+          ct=HAVA_MAXTRIES;
+        }
+      }
+      if(printpkt && !wasvideo) { 
+        print_the_packet(hava,len,so.sin_addr); 
+      }
+      if(!done && !wasvideo)
+      {
+        MSLEEP(sleeptime);
+      }
+    } else {
+      ct=0;
     }
   }
   fprintf(stderr,"Ack status: %d (1=success)\n",done);
@@ -332,12 +382,14 @@ void make_nonblocking(Hava *hava) {
   }
 }
 
-void print_the_packet(Hava *hava,int len) {
+void print_the_packet(Hava *hava,int len,struct in_addr addr) {
   int i;
-  fprintf(stderr,"len=%d\n",len);
+  fprintf(stderr,"len=%d from %s\n",len,inet_ntoa(addr));
   for(i=0;i<len;) {
     if(i && !(i%16)) { fprintf(stderr,"\n"); }
-    fprintf(stderr,"%02x ",hava->buf[i]);
+    if(!(i%16)) { fprintf(stderr,"\t0x%04x: ",i); }
+    if(!(i%2)) { fprintf(stderr," "); }
+    fprintf(stderr,"%02x",hava->buf[i]);
     if(++i==len) { fprintf(stderr,"\n"); }
   }
 }

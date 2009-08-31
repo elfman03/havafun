@@ -63,7 +63,7 @@
 typedef struct Hava {
   int sock;                  // the socket
   int bound;                 // is the socket bound?
-  struct sockaddr_in si;     // sockaddr structure with havas IP addr
+  struct sockaddr_in si;     // Sockaddr with target Hava IP filled in
 
   unsigned char *mypkt_cont; // My moddable copy of a continuation packet
   unsigned char *mypkt_butt; // My moddable copy of a button packet
@@ -80,7 +80,7 @@ typedef struct Hava {
 // takes target Hava device IP
 // returns a Hava connection structure
 //
-extern Hava *Hava_alloc(const char *havaip);
+extern Hava *Hava_alloc(const char *havaip,int verbose);
 
 //
 // use Hava_isbound() to see if it really bound to the Hava local port
@@ -119,12 +119,14 @@ extern void Hava_close(Hava *hava);
 
 #define HAVA_MAGIC_RECORD   0x0000
 #define HAVA_MAGIC_CHANBUTT 0xface
+#define HAVA_MAGIC_INIT     0xb2f8
+#define HAVA_MAGIC_INFO     0x0148
 //
 // Loop for a while
 // Use HAVA_MAGIC_RECORD for video capture
 // Use HAVA_MAGIC_CHANBUTT for channel changes and button presses
 //
-extern int Hava_loop(Hava *hava, unsigned short magic);
+extern int Hava_loop(Hava *hava, unsigned short magic, int verbose);
 
 // Button IDs -- use with Hava_sendcmd()
 //
