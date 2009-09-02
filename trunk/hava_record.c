@@ -89,7 +89,7 @@ main(int argc, char *argv[]) {
   }
   assert(gof);
 
-  hava=Hava_alloc(argv[1],0);
+  hava=Hava_alloc(argv[1],stderr,0);
   assert(Hava_isbound(hava));
   Hava_set_videocb(hava, &my_callback);
 

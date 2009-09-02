@@ -46,13 +46,27 @@
 
 Usage() {
   fprintf(stderr,"Usage: hava_channel <hava_dotform_ipaddr> <target_channel_number>\n");
-  fprintf(stderr,"       hava_channel <hava_dotform_ipaddr> {POW,POWON,POWOFF,SEL}\n\n");
+  fprintf(stderr,"       hava_channel <hava_dotform_ipaddr> <button_name>\n");
+  fprintf(stderr,"       hava_channel showbuttons\n\n");
   fprintf(stderr,"NOTE: If you use '-' for the ipaddr, it will try to autodetect\n");
   fprintf(stderr,"      This mode is not recommended but can be useful for testing\n");
   fprintf(stderr,"      It will crash if you are using the hava player at the same time.\n");
 #ifdef VSTUDIO
   Hava_finishup();
 #endif
+  exit(1);
+}
+
+void showbuttons() {
+  int i;
+  const char *p;
+  fprintf(stderr,"Available buttons are:\n");
+  for(i=0;i<256;i++) {
+    p=Hava_button_ntoa(i);
+    if(p) { 
+      fprintf(stderr,"  %s\n",p);
+    }
+  }
   exit(1);
 }
 
@@ -98,16 +112,15 @@ main(int argc, char *argv[])
   build_argc_argv(args);
 #endif
 
+  if(argc==2 && !strcmp(argv[1],"showbuttons")) { showbuttons(); }
+
   Hava_startup();
 
   if(argc!=3) { Usage(); }
 
   // check for button command
   //
-  if(!strcmp(argv[2],"POW"))    { butt=HAVA_BUTT_POW;    }
-  if(!strcmp(argv[2],"POWON"))  { butt=HAVA_BUTT_POWON;  }
-  if(!strcmp(argv[2],"POWOFF")) { butt=HAVA_BUTT_POWOFF; }
-  if(!strcmp(argv[2],"SEL"))    { butt=HAVA_BUTT_SEL;    }
+  butt=Hava_button_aton(argv[2]);
 
   if(butt==0) {   
     //
@@ -119,7 +132,7 @@ main(int argc, char *argv[])
     if(channy>65535) { Usage(); }
   }
   
-  hava=Hava_alloc(argv[1],0);
+  hava=Hava_alloc(argv[1],stderr,0);
   //
   // Should work even unbound but cannot check ack status
   //
