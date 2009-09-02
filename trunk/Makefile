@@ -1,6 +1,6 @@
 all: hava_channel hava_record hava_info
 
-RELEASE=alpha2
+RELEASE=alpha3
 
 release: 
 	zip dist/havafun-$(RELEASE)-win.zip *.exe *.cmd RELEASE_NOTES.html

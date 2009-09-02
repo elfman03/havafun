@@ -39,6 +39,8 @@ For testing purposes, this package includes several tools and scripts.
 <h2>Hava Info Tool</h2>
 <xmp>
 Usage: hava_info
+        NOTE: Exit from all Hava client programs before running hava_info.
+Windows NOTE: Also run "net stop havasvc" before running hava_info.
 </xmp>
 This dumps the periodic broadcast packet from your hava and the response to the initialize request that we send to hava.  If you have issues, please post the result of running this.
 
@@ -72,6 +74,19 @@ To use, you need to have a hava device on your local network and determine its
 IP address.  Then use one of the following forms to tell the hava what to do.
 
 <h1>Release Details</h1>
+<hr>
+<h2>Release alpha3 -- t.b.d.</h2>
+blah blah
+<p><b>Fixed:</b>
+<ul>
+<li> Informational message on inability to bind in hava_info
+</ul>
+<p><b>Known issues:</b>
+<ul>
+<li> Some channel change issues seen... (havas that aren't connected to component input maybe?
+</ul>
+<p>
+Tested on Windows XP, and Ubuntu 8.10 connecting to a Hava Wireless HD (hardware version 1003100, firmware version 270.322-32).   The Hava Wireless HD was connected to component (YPbPr) inputs and controls a Dish vip211 receiver.
 <hr>
 <h2>Release alpha2 -- 8/30/2009</h2>
 First version with record capability.  Added some sample play scripts and a hava_info tool for diagnostics.  Corresponds to checkin svn revision 13.
