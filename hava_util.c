@@ -51,7 +51,7 @@
 void make_nonblocking();
 void print_the_packet(Hava *h,int len,struct in_addr addr);
 
-Hava *Hava_alloc(const char *havaip,int verbose) {
+Hava *Hava_alloc(const char *havaip,FILE *logfile,int verbose) {
   struct sockaddr_in si;
   Hava *h;
   int blocking=0,
@@ -61,6 +61,9 @@ Hava *Hava_alloc(const char *havaip,int verbose) {
   for(i=0;i<sizeof(Hava);i++) {
     ((char*)h)[i]=0;
   } 
+
+  // set up default logfile
+  h->logfile=logfile;
 
   // allocate my continuation packet
   h->mypkt_cont=malloc(sizeof(continue_pkt));
@@ -101,12 +104,12 @@ Hava *Hava_alloc(const char *havaip,int verbose) {
   if(bind(h->sock,(struct sockaddr*)&si,sizeof(si))>=0) 
   {
     h->bound=1;
-    fprintf(stderr,"Bind successful!\n");
+    fprintf(h->logfile,"Bind successful!\n");
     if(!blocking) {
       make_nonblocking(h);
     }
   } else {
-    fprintf(stderr,"Socket already bound; using async mode\n");
+    fprintf(h->logfile,"Socket already bound; using async mode\n");
   }
 
   // If want to autodetect IP address
@@ -229,18 +232,18 @@ int process_video_packet(Hava *hava, int len) {
     //
     // panic!!!  someone should do something!
     //
-    fprintf(stderr,"Out of order video packet!!! 0x%04x not 0x%04x\n",
+    fprintf(hava->logfile,"Out of order video packet!!! 0x%04x not 0x%04x\n",
            seq,hava->vid_seq);
   }
   hava->vid_seq=++seq;
 
 #ifdef DEBUG_MODE
-//  fprintf(stderr,"SEQUENCE ID=%04x remaining=%d\n",seq,fh->stream_remaining);
+//  fprintf(hava->logfile,"SEQUENCE ID=%04x remaining=%d\n",seq,fh->stream_remaining);
 #endif
   if(fh->stream_remaining==0) {
     Hava_sendcmd(hava,HAVA_CONT_VIDEO,seq); 
 #ifdef DEBUG_MODE
-    fprintf(stderr,"sending continuation from 0x%02x%02x\n",
+    fprintf(hava->logfile,"sending continuation from 0x%02x%02x\n",
                hava->mypkt_cont[SEQ_OFFSET],
                hava->mypkt_cont[SEQ_OFFSET+1]);
 #endif
@@ -315,7 +318,7 @@ int Hava_loop(Hava *hava, unsigned short magic, int verbose) {
       ct=0;
     }
   }
-  fprintf(stderr,"Ack status: %d (1=success)\n",done);
+  fprintf(hava->logfile,"Ack status: %d (1=success)\n",done);
   return done;
 }
 
@@ -362,10 +365,23 @@ void Hava_sendcmd(Hava *hava, int cmd, unsigned short extra) {
     default:
       assert(0);
   }
-//  fprintf(stderr,"send %d bytes\n",len); 
+//  fprintf(hava->logfile,"send %d bytes\n",len); 
   tmp=sendto(hava->sock,buf,len,0,
              (struct sockaddr*)&hava->si, sizeof(hava->si)); 
   assert(tmp==len); 
+}
+
+unsigned char Hava_button_aton(const char *name) {
+  int i;
+  assert(name);
+  for(i=0;i<256;i++) {
+    if(Hava_buttons[i] && !strcmp(name,Hava_buttons[i])) { return i; }
+  }
+  return 0;
+}
+
+const char *Hava_button_ntoa(unsigned char button) {
+  return Hava_buttons[button];
 }
 
 void make_nonblocking(Hava *hava) {
@@ -377,20 +393,20 @@ void make_nonblocking(Hava *hava) {
   if(fcntl(hava->sock,F_SETFL,O_NONBLOCK)==-1) { good=0; }
 #endif
   if(!good) {
-    fprintf(stderr,"nonblocking mode failure.  using async mode...\n");
+    fprintf(hava->logfile,"nonblocking mode failure.  using async mode...\n");
     hava->bound=0;
   }
 }
 
 void print_the_packet(Hava *hava,int len,struct in_addr addr) {
   int i;
-  fprintf(stderr,"len=%d from %s\n",len,inet_ntoa(addr));
+  fprintf(hava->logfile,"len=%d from %s\n",len,inet_ntoa(addr));
   for(i=0;i<len;) {
-    if(i && !(i%16)) { fprintf(stderr,"\n"); }
-    if(!(i%16)) { fprintf(stderr,"\t0x%04x: ",i); }
-    if(!(i%2)) { fprintf(stderr," "); }
-    fprintf(stderr,"%02x",hava->buf[i]);
-    if(++i==len) { fprintf(stderr,"\n"); }
+    if(i && !(i%16)) { fprintf(hava->logfile,"\n"); }
+    if(!(i%16)) { fprintf(hava->logfile,"\t0x%04x: ",i); }
+    if(!(i%2)) { fprintf(hava->logfile," "); }
+    fprintf(hava->logfile,"%02x",hava->buf[i]);
+    if(++i==len) { fprintf(hava->logfile,"\n"); }
   }
 }
 

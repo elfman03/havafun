@@ -64,6 +64,7 @@ typedef struct Hava {
   int sock;                  // the socket
   int bound;                 // is the socket bound?
   struct sockaddr_in si;     // Sockaddr with target Hava IP filled in
+  FILE *logfile;             // File to log messages to (stderr by default)
 
   unsigned char *mypkt_cont; // My moddable copy of a continuation packet
   unsigned char *mypkt_butt; // My moddable copy of a button packet
@@ -80,7 +81,7 @@ typedef struct Hava {
 // takes target Hava device IP
 // returns a Hava connection structure
 //
-extern Hava *Hava_alloc(const char *havaip,int verbose);
+extern Hava *Hava_alloc(const char *havaip,FILE *logfile, int verbose);
 
 //
 // use Hava_isbound() to see if it really bound to the Hava local port
@@ -128,12 +129,16 @@ extern void Hava_close(Hava *hava);
 //
 extern int Hava_loop(Hava *hava, unsigned short magic, int verbose);
 
-// Button IDs -- use with Hava_sendcmd()
+// Convert a button name to a button number
+// Zero equals not found
 //
-#define HAVA_BUTT_POW    0x01
-#define HAVA_BUTT_POWON  0x02
-#define HAVA_BUTT_POWOFF 0x03
-#define HAVA_BUTT_SEL    0x2a
+unsigned char Hava_button_aton(const char *name);
+
+// Use this to get the name of a button number
+// null string equals no match
+//
+const char *Hava_button_ntoa(unsigned char bno);
+
 
 // Hava commands -- use with Hava_sendcmd()
 //
@@ -148,7 +153,7 @@ extern int Hava_loop(Hava *hava, unsigned short magic, int verbose);
 //
 // CONT_VIDEO extra is sequence_number (video streaming) ... internal use only
 // CHANNEL extra is channel number (0-65535) 
-// BUTTON extra is button id
+// BUTTON extra is button id (e.g., from Hava_button_aton())
 //
 extern void Hava_sendcmd(Hava *hava, int cmd, unsigned short extra);
 

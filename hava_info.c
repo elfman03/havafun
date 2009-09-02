@@ -45,8 +45,10 @@
 #include "hava_util.h"
 
 Usage() {
-  fprintf(stderr,"Usage: hava_info\n");
+  fprintf(stderr,"Usage:  hava_info\n");
+  fprintf(stderr,"        NOTE: Exit from all Hava client programs before running hava_info.\n\n");
 #ifdef VSTUDIO
+  fprintf(stderr,"Windows NOTE: Also run "net stop havasvc" before running hava_info.\n");
   Hava_finishup();
 #endif
   exit(1);
@@ -60,8 +62,11 @@ main(int argc, char *argv[])
 
   if(argc!=1) { Usage(); }
 
-  hava=Hava_alloc("-",1);
-  assert(Hava_isbound(hava));
+  hava=Hava_alloc("-",stderr,1);
+  if(!Hava_isbound(hava)) { 
+    fprintf(stderr,"Error: Could not bind to port 1778 in order to recv()\n");
+    Usage() ; 
+  }
 
   printf("Watching for info\n");
 
