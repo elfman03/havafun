@@ -44,41 +44,42 @@
 #include <assert.h>
 #include "hava_util.h"
 
-Usage() {
-  fprintf(stderr,"Usage: hava_channel <hava_dotform_ipaddr> <target_channel_number>\n");
-  fprintf(stderr,"       hava_channel <hava_dotform_ipaddr> <button_name>\n");
-  fprintf(stderr,"       hava_channel showbuttons\n\n");
-  fprintf(stderr,"NOTE: If you use '-' for the ipaddr, it will try to autodetect\n");
-  fprintf(stderr,"      This mode is not recommended but can be useful for testing\n");
-  fprintf(stderr,"      It will crash if you are using the hava player at the same time.\n");
+Usage(FILE *logfile) {
+  fprintf(logfile,"Usage: hava_channel <hava_dotform_ipaddr> <target_channel_number>\n");
+  fprintf(logfile,"       hava_channel <hava_dotform_ipaddr> <button_name>\n");
+  fprintf(logfile,"       hava_channel showbuttons\n\n");
+  fprintf(logfile,"NOTE: If you use '-' for the ipaddr, it will try to autodetect\n");
+  fprintf(logfile,"      This mode is not recommended but can be useful for testing\n");
+  fprintf(logfile,"      It will crash if you are using the hava player at the same time.\n\n");
+  fprintf(logfile,"NOTE: Create file named \"hava_fun.logme\" allow logging to \"hava_fun.log\"\n");
 #ifdef VSTUDIO
   Hava_finishup();
 #endif
   exit(1);
 }
 
-void showbuttons() {
+void showbuttons(FILE *logfile) {
   int i;
   const char *p;
-  fprintf(stderr,"Available buttons are:\n");
+  fprintf(logfile,"Available buttons are:\n");
   for(i=0;i<256;i++) {
     p=Hava_button_ntoa(i);
     if(p) { 
-      fprintf(stderr,"  %s\n",p);
+      fprintf(logfile,"  %s\n",p);
     }
   }
   exit(1);
 }
+
+FILE *logfile=0;
 
 #ifdef HAVA_NOWIN
 int argc;
 #define MAXARG 3
 char *argv[MAXARG];
 void build_argc_argv(LPSTR args) {
-  FILE *f;
   int i,len;
-//  f=fopen("yo","w");
-//  fprintf(f,"args=%s\n",args);
+  fprintf(logfile,"args=%s\n",args); 
   argc=1;
   argv[0]=0;
   len=strlen(args);
@@ -96,8 +97,7 @@ void build_argc_argv(LPSTR args) {
       }
     }
   }
-//  fprintf(f,"argc=%d arg2=%s arg3=%s\n",argc,argv[1],argv[2]);
-//  fclose(f);
+  fprintf(logfile,"argc=%d arg2=%s arg3=%s\n",argc,argv[1],argv[2]);
 }
 int WinMain(HINSTANCE junk1, HINSTANCE junk2, LPSTR args, int junk3)
 #else
@@ -107,16 +107,27 @@ main(int argc, char *argv[])
   Hava *hava;
   int channy;
   unsigned short butt=0;
+  FILE *f;
+
+  //
+  // Create a file named "hava_fun.logme to give permission log to hava_fun.log
+  //
+  f=fopen("hava_fun.logme","r");
+  if(f) {
+    fclose(f);
+    logfile=fopen("hava_fun.log","w");
+  }
+  if(!logfile) { logfile=stderr; }
 
 #ifdef HAVA_NOWIN
   build_argc_argv(args);
 #endif
 
-  if(argc==2 && !strcmp(argv[1],"showbuttons")) { showbuttons(); }
+  if(argc==2 && !strcmp(argv[1],"showbuttons")) { showbuttons(logfile); }
 
-  Hava_startup();
+  Hava_startup(logfile);
 
-  if(argc!=3) { Usage(); }
+  if(argc!=3) { Usage(logfile); }
 
   // check for button command
   //
@@ -128,11 +139,11 @@ main(int argc, char *argv[])
     //
     channy=-1;
     channy=atoi(argv[2]);
-    if(channy<=0)    { Usage(); }
-    if(channy>65535) { Usage(); }
+    if(channy<=0)    { Usage(logfile); }
+    if(channy>65535) { Usage(logfile); }
   }
   
-  hava=Hava_alloc(argv[1],stderr,0);
+  hava=Hava_alloc(argv[1],logfile,0);
   //
   // Should work even unbound but cannot check ack status
   //
@@ -142,14 +153,15 @@ main(int argc, char *argv[])
   if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_INIT,0); }
 
   if(butt) {
-    printf("Sending Init and button=%s request to %s\n",argv[2],argv[1]);
+    fprintf(logfile,"Sending Init and button=%s request to %s\n",argv[2],argv[1]);
     Hava_sendcmd(hava, HAVA_BUTTON, butt); 
   } else {
-    printf("Sending Init and channel=%d(0x%x) to %s\n",channy,channy,argv[1]);
+    fprintf(logfile,"Sending Init and channel=%d(0x%x) to %s\n",channy,channy,argv[1]);
     Hava_sendcmd(hava, HAVA_CHANNEL, (unsigned short)channy); 
   }
   if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_CHANBUTT,0); }
 
   Hava_close(hava);
   Hava_finishup();
+  if(logfile==stderr) { fclose(logfile); }
 }

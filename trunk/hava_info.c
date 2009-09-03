@@ -58,7 +58,7 @@ main(int argc, char *argv[])
 {
   Hava *hava;
 
-  Hava_startup();
+  Hava_startup(stderr);
 
   if(argc!=1) { Usage(); }
 

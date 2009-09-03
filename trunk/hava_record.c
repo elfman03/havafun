@@ -68,7 +68,7 @@ main(int argc, char *argv[]) {
   int tmp,tis=-1;
   struct timeval tv;
 
-  Hava_startup();
+  Hava_startup(stderr);
 
   if(argc!=4) { Usage(); }
 
