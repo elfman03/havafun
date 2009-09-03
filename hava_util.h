@@ -106,7 +106,7 @@ extern unsigned long Hava_getnow();
 //
 // Startup a hava app...  call it first (for winsock initialization)
 //
-extern void  Hava_startup();
+extern void  Hava_startup(FILE *logfile);
 
 //
 // Finishup a hava app...  call it last (for winsock cleanup)

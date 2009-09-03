@@ -151,12 +151,12 @@ void Hava_finishup() {
 #endif
 }
 
-void Hava_startup() {
+void Hava_startup(FILE *logfile) {
 #ifdef VSTUDIO
   WSADATA the_wsa;
   int ret=WSAStartup(0x202,&the_wsa);
   if(ret!=0) {
-    fprintf(stderr,"ERROR INITIALIZING WINSOCK\n");
+    fprintf(logfile,"ERROR INITIALIZING WINSOCK\n");
     Hava_finishup();
     exit(1);
   }
