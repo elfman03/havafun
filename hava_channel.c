@@ -46,7 +46,8 @@
 
 Usage(FILE *logfile) {
   fprintf(logfile,"Usage: hava_channel <hava_dotform_ipaddr> <target_channel_number>\n");
-  fprintf(logfile,"       hava_channel <hava_dotform_ipaddr> <button_name>\n");
+  fprintf(logfile,"       hava_channel <hava_dotform_ipaddr>   <button_name>\n");
+  fprintf(logfile,"       hava_channel <hava_dotform_ipaddr> 0x<button_num>\n");
   fprintf(logfile,"       hava_channel showbuttons\n\n");
   fprintf(logfile,"NOTE: If you use '-' for the ipaddr, it will try to autodetect\n");
   fprintf(logfile,"      This mode is not recommended but can be useful for testing\n");
@@ -65,7 +66,7 @@ void showbuttons(FILE *logfile) {
   for(i=0;i<256;i++) {
     p=Hava_button_ntoa(i);
     if(p) { 
-      fprintf(logfile,"  %s\n",p);
+      fprintf(logfile,"  0x%02x : %s\n",i,p);
     }
   }
   exit(1);
@@ -153,7 +154,7 @@ main(int argc, char *argv[])
   if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_INIT,0); }
 
   if(butt) {
-    fprintf(logfile,"Sending Init and button=%s request to %s\n",argv[2],argv[1]);
+    fprintf(logfile,"Sending Init and button=%s(0x%02x) request to %s\n",argv[2],butt,argv[1]);
     Hava_sendcmd(hava, HAVA_BUTTON, butt); 
   } else {
     fprintf(logfile,"Sending Init and channel=%d(0x%x) to %s\n",channy,channy,argv[1]);
