@@ -377,6 +377,11 @@ unsigned char Hava_button_aton(const char *name) {
   for(i=0;i<256;i++) {
     if(Hava_buttons[i] && !strcmp(name,Hava_buttons[i])) { return i; }
   }
+  //Check for hex button request
+  if (name[0]=='0' && name[1]=='x')
+  {
+    return (unsigned char)strtol(name,(char **)NULL,16);
+  }
   return 0;
 }
 
