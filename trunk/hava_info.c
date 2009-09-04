@@ -48,7 +48,7 @@ Usage() {
   fprintf(stderr,"Usage:  hava_info\n");
   fprintf(stderr,"        NOTE: Exit from all Hava client programs before running hava_info.\n\n");
 #ifdef VSTUDIO
-  fprintf(stderr,"Windows NOTE: Also run "net stop havasvc" before running hava_info.\n");
+  fprintf(stderr,"Windows NOTE: Also run \"net stop havasvc\" before running hava_info.\n");
   Hava_finishup();
 #endif
   exit(1);

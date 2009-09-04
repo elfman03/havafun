@@ -47,7 +47,8 @@ This dumps the periodic broadcast packet from your hava and the response to the 
 <h2>Hava Channel Tool</h2>
 <xmp>
 Usage: hava_channel <hava_dotform_ipaddr> <target_channel_number>
-       hava_channel <hava_dotform_ipaddr> <button_name>
+       hava_channel <hava_dotform_ipaddr>   <button_name>
+       hava_channel <hava_dotform_ipaddr> 0x<button_num>
        hava_channel showbuttons
 
 NOTE: If you use '-' for the ipaddr, it will try to autodetect
@@ -88,6 +89,7 @@ blah blah
 <li> Informational message on inability to bind in hava_info
 <li> Added hava_channel_nowin logfile option (create file called hava_fun.logme in current directory in order for hava_channel_nowin to write details to a log.
 <li> Changed buttons (Power, PowerOn, PowerOff, Select) over to new names and implemented it as an extensible list to simplify new button additions later.
+<li> Thanks to jlpatte at Hava forums, added a bunch of buttons and ability to choose button by hex instead of by name.
 </ul>
 <p><b>Known issues:</b>
 <ul>
