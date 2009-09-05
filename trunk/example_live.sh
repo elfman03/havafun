@@ -7,7 +7,8 @@
 
 # Set this to be your havas address
 #
-HAVA=192.168.1.253
+# HAVA=192.168.1.253
+HAVA=-
 
 # Set this to be the duration that you want to play
 #

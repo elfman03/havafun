@@ -44,6 +44,7 @@
 #include <assert.h>
 
 //#define DEBUG_MODE 1
+//#define DEBUG_MODE_VERBOSE 1
 
 #include "hava_util.h"
 #include "hava_util_internals.h"
@@ -205,16 +206,30 @@ int process_video_packet(Hava *hava, int len) {
   FrameHeader *fh;
   fh=(FrameHeader*)&hava->buf[0];
   //
-  // just worry about video payload packets
+  // Handle Explicit Continuation Request
   //
-  if(fh->cmdhi!=0x03 || fh->cmdlo!=0x02) {
+  if(len==8 && (fh->cmdhi==0x03) && (fh->cmdlo==0x05)) {
+    Hava_sendcmd(hava,HAVA_CONT_VIDEO,0); 
+    if(hava->buf[7]) {
+      fprintf(hava->logfile,"Timing! Hava wants continuation 0x%04x %d times... 0x%02x pkts\n",hava->vid_seq,hava->buf[7]+1,hava->mypkt_cont[Xa]);
+    }
+#ifdef DEBUG_MODE
+  fprintf(hava->logfile,"Send Cont Permission 0x%04x 0x%02x pkt\n",
+                        hava->vid_seq,hava->mypkt_cont[Xa]);
+#endif
+    return 1;
+  }
+  //
+  // Now just worry about video payload packets
+  //
+  if((fh->cmdhi!=0x03) || (fh->cmdlo!=0x02)) {
     return 0;
   }
   //
   // Only two known packet sizes
   //
   assert(len==1470 || len==406);
-  seq=fh->seqhi<<8 | fh->seqlo;
+  seq=(fh->seqhi<<8) | (fh->seqlo);
 
   // First time thru, do something special
   //
@@ -235,15 +250,23 @@ int process_video_packet(Hava *hava, int len) {
     fprintf(hava->logfile,"Out of order video packet!!! 0x%04x not 0x%04x\n",
            seq,hava->vid_seq);
   }
-  hava->vid_seq=++seq;
 
-#ifdef DEBUG_MODE
-//  fprintf(hava->logfile,"SEQUENCE ID=%04x remaining=%d\n",seq,fh->stream_remaining);
+#ifdef DEBUG_MODE_VERBOSE
+  fprintf(hava->logfile,"SEQUENCE ID=%04x (expected 0x%04x) remaining=%d\n",seq,hava->vid_seq,fh->stream_remaining);
 #endif
+
+  seq++;
+  hava->vid_seq=seq;
   if(fh->stream_remaining==0) {
-    Hava_sendcmd(hava,HAVA_CONT_VIDEO,seq); 
+    hava->mypkt_cont[SEQ_OFFSET+1]=(seq & 0x0ff);
+    hava->mypkt_cont[SEQ_OFFSET]=((seq>>8) & 0x0ff);
+    hava->mypkt_cont[XM]=fh->next_time_desired-1;
+    hava->mypkt_cont[Xa]=fh->next_time_desired;
+    hava->mypkt_cont[Xb]=fh->next_time_desired;
+//    Hava_sendcmd(hava,HAVA_CONT_VIDEO,0); 
 #ifdef DEBUG_MODE
-    fprintf(hava->logfile,"sending continuation from 0x%02x%02x\n",
+    fprintf(hava->logfile,"sending continuation(0x%02x) from 0x%02x%02x\n",
+               fh->next_time_desired,
                hava->mypkt_cont[SEQ_OFFSET],
                hava->mypkt_cont[SEQ_OFFSET+1]);
 #endif
@@ -272,50 +295,77 @@ int Hava_loop(Hava *hava, unsigned short magic, int verbose) {
 
   if(magic==HAVA_MAGIC_INFO) { sleeptime=500; }
 
-  for(ct=0;ct<HAVA_MAXTRIES;ct++) {
+  ct=0;
+  for(done=0;!done;) {
     tmp=sizeof(so);
     hava->buf[2]=0;
     hava->buf[3]=0;
     so.sin_addr.s_addr=INADDR_ANY;
-    len=recvfrom(hava->sock,hava->buf, HAVA_BUFFSIZE, 
-                 0,(struct sockaddr*)&so,&tmp);
-    assert(tmp==sizeof(so));
+    //
+    // Get a packet or die trying
+    //
+    for(pkt=0;pkt<HAVA_MAXTRIES;) {
+      len=recvfrom(hava->sock,hava->buf, HAVA_BUFFSIZE, 
+                   0,(struct sockaddr*)&so,&tmp);
+      assert(tmp==sizeof(so));
+      if(len!=-1) {               // yay! got a packet
+        pkt=HAVA_MAXTRIES;
+      } else {                    // Lets try some more
+        pkt++;
+        MSLEEP(sleeptime);
+      }
+    }
+    if(len==-1) { done=-1; }      // Give up
+
+    //
+    // In "-" mode, autopopulate Hava address
+    //
     if(len==300 && magic==HAVA_MAGIC_INFO) {
       hava->si.sin_addr.s_addr=so.sin_addr.s_addr;
     }
-    if(so.sin_addr.s_addr==hava->si.sin_addr.s_addr) {
+    //
+    // Process the good packet if we got it
+    //
+    if(len>=0 && so.sin_addr.s_addr==hava->si.sin_addr.s_addr) {
+      //
+      // reset our counter on good payload; increment it on info broadcast
+      //
+      if(len==300) {
+        if(ct>HAVA_MAXTRIES) { done=-2; }
+        ct++;
+      } else {
+        ct=0;
+      }
+      //
+      //
+      //
       pkt=hava->buf[2]<<8 | hava->buf[3];
+      //
+      // Response to our initialization request
+      //
       if(len==336 && magic==HAVA_MAGIC_INIT) {
         if(verbose) { printpkt=1; }
         done=1;
-        ct=HAVA_MAXTRIES;
       }
+      //
+      // Periodic packet that Hava broadcasts
+      //
       if(len==300 && magic==HAVA_MAGIC_INFO) {
         if(verbose) { printpkt=1; }
         done=1;
-        ct=HAVA_MAXTRIES;
       }
       if(len==4 && magic && pkt==magic) {
         done=1;
-        ct=HAVA_MAXTRIES;
       }
-      if(len>=0 && !done) {
-        ct=0;
+      if(!done) {
         wasvideo=process_video_packet(hava, len);
         if(wasvideo==3) { 
           done=1; 
-          ct=HAVA_MAXTRIES;
         }
       }
       if(printpkt && !wasvideo) { 
         print_the_packet(hava,len,so.sin_addr); 
       }
-      if(!done && !wasvideo)
-      {
-        MSLEEP(sleeptime);
-      }
-    } else {
-      ct=0;
     }
   }
   fprintf(hava->logfile,"Ack status: %d (1=success)\n",done);
@@ -330,8 +380,6 @@ void Hava_sendcmd(Hava *hava, int cmd, unsigned short extra) {
        //
        // update with sequence number
        //
-       hava->mypkt_cont[SEQ_OFFSET+1]=(extra & 0x0ff);
-       hava->mypkt_cont[SEQ_OFFSET]=((extra>>8) & 0x0ff);
        buf=hava->mypkt_cont;     
        len=sizeof(continue_pkt);
        break;

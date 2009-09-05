@@ -49,7 +49,7 @@ typedef struct FrameHeader {
   unsigned short s4;
   unsigned short s6;
   unsigned short s8;
-  unsigned char  c10;
+  unsigned char  next_time_desired; // Desired number of continuation slots
   unsigned char  stream_remaining;  // cntdown to 0 then send continue packet
   unsigned short c12;
   unsigned short c14;
@@ -105,7 +105,12 @@ const unsigned char start_pkt[8]={ 0x03,0x0c,0xfe,0xed,0x00,0x00,0x00,0x02, };
 const unsigned char continue_pkt[22]={ 0x03,0x03,0xff,0xff,0x0f,0xb1,0xda,0xbc,
                                        0x00,0x03,0x92,0x94,0x00,0x00,0x74,0x90,
                                        0x20,0x21,0x21,0x04,0x00,0x00, };
+// Where to insert the sequence number
 #define SEQ_OFFSET 2
+// Get X out of previous frame->next_time_desired
+#define XM 16
+#define Xa 17
+#define Xb 18
 
 #define HAVA_MAXTRIES 8
 #define HAVA_BUFFSIZE 4096
