@@ -151,9 +151,12 @@ const char *Hava_button_ntoa(unsigned char bno);
 //
 // Send a command! (INIT, START_VIDEO, CONT_VIDEO, CHANNEL, BUTTON)
 //
-// CONT_VIDEO extra is sequence_number (video streaming) ... internal use only
-// CHANNEL extra is channel number (0-65535) 
-// BUTTON extra is button id (e.g., from Hava_button_aton())
+// CONT_VIDEO ... internal use only
+//   -- extra is sequence_number (video streaming) ... internal use only
+// CHANNEL 
+//   -- extra is channel number (0-65535) 
+// BUTTON 
+//   -- extra is button id (e.g., from Hava_button_aton())
 //
 extern void Hava_sendcmd(Hava *hava, int cmd, unsigned short extra);
 

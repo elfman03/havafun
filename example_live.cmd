@@ -7,7 +7,8 @@ rem # Update your Hava IP address below in the HAVA variable
 
 rem # Set this to be your havas address
 
-set HAVA=192.168.1.253
+rem set HAVA=192.168.1.253
+set HAVA=-
 
 rem # Set this to be the duration that you want to play
 
