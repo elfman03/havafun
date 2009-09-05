@@ -62,7 +62,7 @@ main(int argc, char *argv[])
 
   if(argc!=1) { Usage(); }
 
-  hava=Hava_alloc("-",stderr,1);
+  hava=Hava_alloc("-",1,stderr,1);
   if(!Hava_isbound(hava)) { 
     fprintf(stderr,"Error: Could not bind to port 1778 in order to recv()\n");
     Usage() ; 
@@ -70,7 +70,7 @@ main(int argc, char *argv[])
 
   printf("Watching for info\n");
 
-  Hava_sendcmd(hava, HAVA_INIT, 0); 
+  Hava_sendcmd(hava, HAVA_INIT, 0, 0); 
   Hava_loop(hava,HAVA_MAGIC_INIT,1); 
 
   Hava_close(hava);

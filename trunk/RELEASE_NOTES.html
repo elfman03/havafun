@@ -46,10 +46,11 @@ This dumps the periodic broadcast packet from your hava and the response to the 
 
 <h2>Hava Channel Tool</h2>
 <xmp>
-Usage: hava_channel <hava_dotform_ipaddr> <target_channel_number>
-       hava_channel <hava_dotform_ipaddr>   <button_name>
-       hava_channel <hava_dotform_ipaddr> 0x<button_num>
+Usage: hava_channel {hava_dotform_ipaddr} {input_name|id} {tgt_channel_no}
+       hava_channel {hava_dotform_ipaddr} {input_name|id} {button_name}
+       hava_channel {hava_dotform_ipaddr} {input_name|id} 0x{button_num}
        hava_channel showbuttons
+       hava_channel showinputs
 
 NOTE: If you use '-' for the ipaddr, it will try to autodetect
       This mode is not recommended but can be useful for testing
@@ -83,13 +84,17 @@ IP address.  Then use one of the following forms to tell the hava what to do.
 <h1>Release Details</h1>
 <hr>
 <h2>Release alpha3 -- t.b.d.</h2>
-blah blah
+NOTE: There is new syntax for hava_channel
+<p>
+Three major changes.  First, dramatic progress made on video capture.  Found some socket usage flaws and determined that we need to use blocking sockets to avoid packet loss.  Secondly, progress changing the hava_channel too support the different inputs of hava.  Finally, added more buttons to hava_channel thanks to jlpatte at Hava forums.
 <p><b>Fixed:</b>
 <ul>
 <li> Informational message on inability to bind in hava_info
 <li> Added hava_channel_nowin logfile option (create file called hava_fun.logme in current directory in order for hava_channel_nowin to write details to a log.
 <li> Changed buttons (Power, PowerOn, PowerOff, Select) over to new names and implemented it as an extensible list to simplify new button additions later.
 <li> Thanks to jlpatte at Hava forums, added a bunch of buttons and ability to choose button by hex instead of by name.
+<li> Avoid nonblocking sockets for several of the tools (recording in particular gets odd timeout behavior)
+<li> Let Hava choose the packet throttling rate on recording
 </ul>
 <p><b>Known issues:</b>
 <ul>

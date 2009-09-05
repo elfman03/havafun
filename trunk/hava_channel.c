@@ -45,10 +45,11 @@
 #include "hava_util.h"
 
 Usage(FILE *logfile) {
-  fprintf(logfile,"Usage: hava_channel <hava_dotform_ipaddr> <target_channel_number>\n");
-  fprintf(logfile,"       hava_channel <hava_dotform_ipaddr>   <button_name>\n");
-  fprintf(logfile,"       hava_channel <hava_dotform_ipaddr> 0x<button_num>\n");
-  fprintf(logfile,"       hava_channel showbuttons\n\n");
+  fprintf(logfile,"Usage: hava_channel {hava_dotform_ipaddr} {input_name|id} {tgt_channel_no}\n");
+  fprintf(logfile,"       hava_channel {hava_dotform_ipaddr} {input_name|id} {button_name}\n");
+  fprintf(logfile,"       hava_channel {hava_dotform_ipaddr} {input_name|id} 0x{button_num}\n");
+  fprintf(logfile,"       hava_channel showbuttons\n");
+  fprintf(logfile,"       hava_channel showinputs\n\n");
   fprintf(logfile,"NOTE: If you use '-' for the ipaddr, it will try to autodetect\n");
   fprintf(logfile,"      This mode is not recommended but can be useful for testing\n");
   fprintf(logfile,"      It will crash if you are using the hava player at the same time.\n\n");
@@ -67,6 +68,19 @@ void showbuttons(FILE *logfile) {
     p=Hava_button_ntoa(i);
     if(p) { 
       fprintf(logfile,"  0x%02x : %s\n",i,p);
+    }
+  }
+  exit(1);
+}
+
+void showinputs(FILE *logfile) {
+  int i;
+  const char *p;
+  fprintf(logfile,"Available buttons are:\n");
+  for(i=0;i<4;i++) {
+    p=Hava_input_ntoa(i);
+    if(p) { 
+      fprintf(logfile,"  %d : %s\n",i,p);
     }
   }
   exit(1);
@@ -106,7 +120,8 @@ main(int argc, char *argv[])
 #endif
 {
   Hava *hava;
-  int channy;
+  int channy,
+      input=-2;
   unsigned short butt=0;
   FILE *f;
 
@@ -125,40 +140,52 @@ main(int argc, char *argv[])
 #endif
 
   if(argc==2 && !strcmp(argv[1],"showbuttons")) { showbuttons(logfile); }
+  if(argc==2 && !strcmp(argv[1],"showinputs")) { showinputs(logfile); }
 
   Hava_startup(logfile);
 
-  if(argc!=3) { Usage(logfile); }
+  if(argc!=4) { Usage(logfile); }
+
+  // check for input name
+  //
+  input=Hava_input_aton(argv[2]);
+  if(input<0) {
+    fprintf(logfile,"Unknown input %s\n\n",argv[2]);
+    Usage(logfile);
+  }
 
   // check for button command
   //
-  butt=Hava_button_aton(argv[2]);
+  butt=Hava_button_aton(argv[3]);
 
   if(butt==0) {   
     //
     // not button...  check for channel command...
     //
     channy=-1;
-    channy=atoi(argv[2]);
+    channy=atoi(argv[3]);
     if(channy<=0)    { Usage(logfile); }
     if(channy>65535) { Usage(logfile); }
   }
   
-  hava=Hava_alloc(argv[1],logfile,0);
+  hava=Hava_alloc(argv[1],1,logfile,0);
   //
   // Should work even unbound but cannot check ack status
   //
   // assert(Hava_isbound(hava));
 
-  Hava_sendcmd(hava, HAVA_INIT, 0); 
+  Hava_sendcmd(hava, HAVA_INIT, 0, 0); 
+  fprintf(logfile,"Sending Init request to %s\n",argv[1]);
   if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_INIT,0); }
 
   if(butt) {
-    fprintf(logfile,"Sending Init and button=%s(0x%02x) request to %s\n",argv[2],butt,argv[1]);
-    Hava_sendcmd(hava, HAVA_BUTTON, butt); 
+    fprintf(logfile,"Sending button=%s(0x%02x) request to %s(ANY?)\n",
+                    Hava_button_ntoa(butt),butt,argv[1]);
+    Hava_sendcmd(hava, HAVA_BUTTON, butt, (unsigned short)input); 
   } else {
-    fprintf(logfile,"Sending Init and channel=%d(0x%x) to %s\n",channy,channy,argv[1]);
-    Hava_sendcmd(hava, HAVA_CHANNEL, (unsigned short)channy); 
+    fprintf(logfile,"Sending channel=%d(0x%x) to %s(%s)\n",
+                    channy,channy,argv[1],Hava_input_ntoa(input));
+    Hava_sendcmd(hava, HAVA_CHANNEL, (unsigned short)channy, (unsigned short)input); 
   }
   if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_CHANBUTT,0); }
 

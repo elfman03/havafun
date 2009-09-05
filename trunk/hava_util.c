@@ -40,6 +40,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <assert.h>
 
@@ -52,11 +53,11 @@
 void make_nonblocking();
 void print_the_packet(Hava *h,int len,struct in_addr addr);
 
-Hava *Hava_alloc(const char *havaip,FILE *logfile,int verbose) {
+Hava *Hava_alloc(const char *havaip, int tryblocking,
+                 FILE *logfile, int verbose) {
   struct sockaddr_in si;
   Hava *h;
-  int blocking=0,
-      i;
+  int i;
   h=(Hava*)malloc(sizeof(Hava));
   assert(h);
   for(i=0;i<sizeof(Hava);i++) {
@@ -106,7 +107,7 @@ Hava *Hava_alloc(const char *havaip,FILE *logfile,int verbose) {
   {
     h->bound=1;
     fprintf(h->logfile,"Bind successful!\n");
-    if(!blocking) {
+    if(tryblocking) {
       make_nonblocking(h);
     }
   } else {
@@ -116,7 +117,7 @@ Hava *Hava_alloc(const char *havaip,FILE *logfile,int verbose) {
   // If want to autodetect IP address
   //
   if(h->si.sin_addr.s_addr==INADDR_ANY) {
-    assert(h->bound);
+    fprintf(h->logfile,"If we hang here a long time it means nothing came in from hava\n");
     Hava_loop(h, HAVA_MAGIC_INFO, verbose);
   }
   return h;
@@ -209,8 +210,12 @@ int process_video_packet(Hava *hava, int len) {
   // Handle Explicit Continuation Request
   //
   if(len==8 && (fh->cmdhi==0x03) && (fh->cmdlo==0x05)) {
-    Hava_sendcmd(hava,HAVA_CONT_VIDEO,0); 
-    if(hava->buf[7]) {
+    Hava_sendcmd(hava,HAVA_CONT_VIDEO,0,0); 
+    //
+    // If Hava doesn't get continuation in time it asks again
+    // offset 7 holds the count of how many times it has asked
+    //
+    if(hava->buf[7]) { 
       fprintf(hava->logfile,"Timing! Hava wants continuation 0x%04x %d times... 0x%02x pkts\n",hava->vid_seq,hava->buf[7]+1,hava->mypkt_cont[Xa]);
     }
 #ifdef DEBUG_MODE
@@ -263,7 +268,7 @@ int process_video_packet(Hava *hava, int len) {
     hava->mypkt_cont[XM]=fh->next_time_desired-1;
     hava->mypkt_cont[Xa]=fh->next_time_desired;
     hava->mypkt_cont[Xb]=fh->next_time_desired;
-//    Hava_sendcmd(hava,HAVA_CONT_VIDEO,0); 
+    Hava_sendcmd(hava,HAVA_CONT_VIDEO,0,0); 
 #ifdef DEBUG_MODE
     fprintf(hava->logfile,"sending continuation(0x%02x) from 0x%02x%02x\n",
                fh->next_time_desired,
@@ -372,23 +377,20 @@ int Hava_loop(Hava *hava, unsigned short magic, int verbose) {
   return done;
 }
 
-void Hava_sendcmd(Hava *hava, int cmd, unsigned short extra) {
+void Hava_sendcmd(Hava *hava, int cmd, unsigned short eA, unsigned short eB) {
   int tmp, len;
   const char *buf;
   switch (cmd) {
     case HAVA_CONT_VIDEO:
-       //
-       // update with sequence number
-       //
        buf=hava->mypkt_cont;     
        len=sizeof(continue_pkt);
        break;
     case HAVA_START_VIDEO:
-       buf=&start_pkt[0];        // global
+       buf=&start_pkt[0];        // global immutable
        len=sizeof(start_pkt);
        break;
     case HAVA_INIT:
-       buf=&init_pkt[0];         // global
+       buf=&init_pkt[0];         // global immutable
        len=sizeof(init_pkt);
        break;
     case HAVA_CHANNEL:
@@ -397,8 +399,9 @@ void Hava_sendcmd(Hava *hava, int cmd, unsigned short extra) {
        //
        hava->mypkt_chan[CHANNEL_OFFSET]=0;
        hava->mypkt_chan[CHANNEL_OFFSET+1]=0;
-       hava->mypkt_chan[CHANNEL_OFFSET+2]=((extra>>8)&0x0ff);
-       hava->mypkt_chan[CHANNEL_OFFSET+3]=(extra&0xff);
+       hava->mypkt_chan[CHANNEL_OFFSET+2]=((eA>>8)&0x0ff);
+       hava->mypkt_chan[CHANNEL_OFFSET+3]=(eA&0xff);
+       hava->mypkt_chan[CHANNEL_INPUT_OFFSET]=(eB&0xff);
        buf=hava->mypkt_chan;
        len=sizeof(channel_set);
        break;
@@ -406,7 +409,7 @@ void Hava_sendcmd(Hava *hava, int cmd, unsigned short extra) {
        //
        // Update with button number
        //
-       hava->mypkt_butt[BUTTON_OFFSET]=(unsigned char)extra;
+       hava->mypkt_butt[BUTTON_OFFSET]=(unsigned char)eA;
        buf=hava->mypkt_butt;
        len=sizeof(button_push);
        break;
@@ -417,6 +420,26 @@ void Hava_sendcmd(Hava *hava, int cmd, unsigned short extra) {
   tmp=sendto(hava->sock,buf,len,0,
              (struct sockaddr*)&hava->si, sizeof(hava->si)); 
   assert(tmp==len); 
+}
+
+const char *Hava_input_ntoa(unsigned char ino) {
+  assert(ino<4);
+  return Hava_inputs[ino];
+}
+
+int Hava_input_aton(const char *name) {
+  int i;
+  assert(name);
+  for(i=0;i<4;i++) {
+    if(Hava_inputs[i] && !strcmp(name,Hava_inputs[i])) { return i; }
+  }
+  if(strlen(name)==1) {
+    if(name[0]=='0') { return 0; }
+    if(name[0]=='1') { return 1; }
+    if(name[0]=='2') { return 2; }
+    if(name[0]=='3') { return 3; }
+  }
+  return -1;
 }
 
 unsigned char Hava_button_aton(const char *name) {
