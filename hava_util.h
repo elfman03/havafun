@@ -78,10 +78,14 @@ typedef struct Hava {
   void (*vid_callback)(const char *buf,int len);  // hava_util calls this w/pkts
 } Hava;
 
-// takes target Hava device IP
-// returns a Hava connection structure
+// input  --  Target Hava device IP or "-"
+// input  --  Try to make the socket nonblocking
+// input  --  Logfile to use (typically stderr)
+// input  --  Request to be verbose (prints lots of stuff)
+// output --  A new Hava connection structure
 //
-extern Hava *Hava_alloc(const char *havaip,FILE *logfile, int verbose);
+extern Hava *Hava_alloc(const char *havaip, int trynonblocking,
+                        FILE *logfile, int verbose);
 
 //
 // use Hava_isbound() to see if it really bound to the Hava local port
@@ -139,6 +143,16 @@ unsigned char Hava_button_aton(const char *name);
 //
 const char *Hava_button_ntoa(unsigned char bno);
 
+// Use this to get the number of an input
+// null string equals no match
+//
+int Hava_input_aton(const char *name);
+
+// Use this to get the name of an input
+// null string equals no match
+//
+const char *Hava_input_ntoa(unsigned char ino);
+
 
 // Hava commands -- use with Hava_sendcmd()
 //
@@ -152,12 +166,14 @@ const char *Hava_button_ntoa(unsigned char bno);
 // Send a command! (INIT, START_VIDEO, CONT_VIDEO, CHANNEL, BUTTON)
 //
 // CONT_VIDEO ... internal use only
-//   -- extra is sequence_number (video streaming) ... internal use only
 // CHANNEL 
-//   -- extra is channel number (0-65535) 
+//   -- eA is channel number (0-65535) 
+//   -- eB is input number (0-3)
 // BUTTON 
-//   -- extra is button id (e.g., from Hava_button_aton())
+//   -- eA is button id (e.g., from Hava_button_aton())
+//   -- eB is input number (0-3)
 //
-extern void Hava_sendcmd(Hava *hava, int cmd, unsigned short extra);
+extern void Hava_sendcmd(Hava *hava, int cmd, 
+                                     unsigned short eA, unsigned short Eb);
 
 #endif

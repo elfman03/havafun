@@ -89,7 +89,7 @@ main(int argc, char *argv[]) {
   }
   assert(gof);
 
-  hava=Hava_alloc(argv[1],stderr,0);
+  hava=Hava_alloc(argv[1],0,stderr,0);
   assert(Hava_isbound(hava));
   Hava_set_videocb(hava, &my_callback);
 
@@ -100,10 +100,10 @@ main(int argc, char *argv[]) {
   }
 
   fprintf(stderr,"Sending Init and video start request to %s\n",argv[1]);
-  Hava_sendcmd(hava, HAVA_INIT, 0); 
+  Hava_sendcmd(hava, HAVA_INIT, 0, 0); 
   Hava_loop(hava,HAVA_MAGIC_INIT,0); 
 
-  Hava_sendcmd(hava, HAVA_START_VIDEO, 0); 
+  Hava_sendcmd(hava, HAVA_START_VIDEO, 0, 0); 
   Hava_loop(hava,HAVA_MAGIC_RECORD,0);
 
   fclose(gof);
