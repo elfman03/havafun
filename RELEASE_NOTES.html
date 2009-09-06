@@ -46,9 +46,9 @@ This dumps the periodic broadcast packet from your hava and the response to the 
 
 <h2>Hava Channel Tool</h2>
 <xmp>
-Usage: hava_channel {hava_dotform_ipaddr} {input_name|id} {tgt_channel_no}
-       hava_channel {hava_dotform_ipaddr} {input_name|id} {button_name}
-       hava_channel {hava_dotform_ipaddr} {input_name|id} 0x{button_num}
+Usage: hava_channel {hava_dotform_ipaddr} {input_name|id} {tgt_channel_no} [nobind]
+       hava_channel {hava_dotform_ipaddr} {input_name|id} {button_name}    [nobind]
+       hava_channel {hava_dotform_ipaddr} {input_name|id} 0x{button_num}   [nobind]
        hava_channel showbuttons
        hava_channel showinputs
 
@@ -90,6 +90,7 @@ Three major changes.  First, dramatic progress made on video capture.  Found som
 <p><b>Fixed:</b>
 <ul>
 <li> Informational message on inability to bind in hava_info
+<li> Fix socket binding conflict with Monsoon's havasvc on Vista
 <li> Added hava_channel_nowin logfile option (create file called hava_fun.logme in current directory in order for hava_channel_nowin to write details to a log.
 <li> Changed buttons (Power, PowerOn, PowerOff, Select) over to new names and implemented it as an extensible list to simplify new button additions later.
 <li> Thanks to jlpatte at Hava forums, added a bunch of buttons and ability to choose button by hex instead of by name.
