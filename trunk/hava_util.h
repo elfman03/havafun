@@ -48,6 +48,7 @@
 #ifdef VSTUDIO
 #define MSLEEP(a) Sleep(a)
 #define CLOSE(a) closesocket(a)
+#include <winsock2.h>
 #include <windows.h>
 #include <winbase.h>
 #else
@@ -79,12 +80,14 @@ typedef struct Hava {
 } Hava;
 
 // input  --  Target Hava device IP or "-"
+// input  --  Should I try to bind?
+// input  --  Should I use blocking socket semantics
 // input  --  Try to make the socket nonblocking
 // input  --  Logfile to use (typically stderr)
 // input  --  Request to be verbose (prints lots of stuff)
 // output --  A new Hava connection structure
 //
-extern Hava *Hava_alloc(const char *havaip, int trynonblocking,
+extern Hava *Hava_alloc(const char *havaip, int binding, int blocking,
                         FILE *logfile, int verbose);
 
 //

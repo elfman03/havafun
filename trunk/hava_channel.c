@@ -45,9 +45,9 @@
 #include "hava_util.h"
 
 Usage(FILE *logfile) {
-  fprintf(logfile,"Usage: hava_channel {hava_dotform_ipaddr} {input_name|id} {tgt_channel_no}\n");
-  fprintf(logfile,"       hava_channel {hava_dotform_ipaddr} {input_name|id} {button_name}\n");
-  fprintf(logfile,"       hava_channel {hava_dotform_ipaddr} {input_name|id} 0x{button_num}\n");
+  fprintf(logfile,"Usage: hava_channel {hava_ipaddr} {input_name|id} {tgt_channel_no} [nobind]\n");
+  fprintf(logfile,"       hava_channel {hava_ipaddr} {input_name|id} {button_name}    [nobind]\n");
+  fprintf(logfile,"       hava_channel {hava_ipaddr} {input_name|id} 0x{button_num}   [nobind]\n");
   fprintf(logfile,"       hava_channel showbuttons\n");
   fprintf(logfile,"       hava_channel showinputs\n\n");
   fprintf(logfile,"NOTE: If you use '-' for the ipaddr, it will try to autodetect\n");
@@ -90,13 +90,13 @@ FILE *logfile=0;
 
 #ifdef HAVA_NOWIN
 int argc;
-#define MAXARG 3
+#define MAXARG 16
 char *argv[MAXARG];
 void build_argc_argv(LPSTR args) {
   int i,len;
   fprintf(logfile,"args=%s\n",args); 
   argc=1;
-  argv[0]=0;
+  argv[0]="";
   len=strlen(args);
   if(len) { 
     argv[1]=malloc(len+1);
@@ -112,7 +112,10 @@ void build_argc_argv(LPSTR args) {
       }
     }
   }
-  fprintf(logfile,"argc=%d arg2=%s arg3=%s\n",argc,argv[1],argv[2]);
+  fprintf(logfile,"argc=%d\n",argc);
+  for(i=0;i<argc;i++) {
+    fprintf(logfile,"   argv[%d]=\"%s\"\n",i,argv[i]);
+  }
 }
 int WinMain(HINSTANCE junk1, HINSTANCE junk2, LPSTR args, int junk3)
 #else
@@ -120,7 +123,8 @@ main(int argc, char *argv[])
 #endif
 {
   Hava *hava;
-  int channy,
+  int binding=1,
+      channy,
       input=-2;
   unsigned short butt=0;
   FILE *f;
@@ -143,6 +147,11 @@ main(int argc, char *argv[])
   if(argc==2 && !strcmp(argv[1],"showinputs")) { showinputs(logfile); }
 
   Hava_startup(logfile);
+
+  if(argc==5 && !strcmp(argv[4],"nobind")) { 
+    binding=0;
+    argc--;
+  }
 
   if(argc!=4) { Usage(logfile); }
 
@@ -168,7 +177,7 @@ main(int argc, char *argv[])
     if(channy>65535) { Usage(logfile); }
   }
   
-  hava=Hava_alloc(argv[1],1,logfile,0);
+  hava=Hava_alloc(argv[1],binding,0,logfile,0);
   //
   // Should work even unbound but cannot check ack status
   //

@@ -50,10 +50,11 @@
 #include "hava_util.h"
 #include "hava_util_internals.h"
 
-void make_nonblocking();
+void make_exclusive(Hava *);
+void make_nonblocking(Hava *);
 void print_the_packet(Hava *h,int len,struct in_addr addr);
 
-Hava *Hava_alloc(const char *havaip, int tryblocking,
+Hava *Hava_alloc(const char *havaip, int binding, int blocking,
                  FILE *logfile, int verbose) {
   struct sockaddr_in si;
   Hava *h;
@@ -87,6 +88,7 @@ Hava *Hava_alloc(const char *havaip, int tryblocking,
 
   h->sock=socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
   assert(h->sock>=0); 
+  make_exclusive(h);
 
   h->si.sin_family=AF_INET;
   //
@@ -103,15 +105,18 @@ Hava *Hava_alloc(const char *havaip, int tryblocking,
   si.sin_family=AF_INET;
   si.sin_addr.s_addr=INADDR_ANY;
   si.sin_port=htons(1778);
-  if(bind(h->sock,(struct sockaddr*)&si,sizeof(si))>=0) 
-  {
-    h->bound=1;
-    fprintf(h->logfile,"Bind successful!\n");
-    if(tryblocking) {
-      make_nonblocking(h);
-    }
+  if(!binding) {
+    fprintf(h->logfile,"Application requested not to bind... No recv() so no ACK checking!\n");
   } else {
-    fprintf(h->logfile,"Socket already bound; using async mode\n");
+    if(bind(h->sock,(struct sockaddr*)&si,sizeof(si))==0) {
+      h->bound=1;
+      fprintf(h->logfile,"Bind successful!  recv() possible...\n");
+    } else {
+      fprintf(h->logfile,"Socket already bound! no recv() possible so no ACK checking...\n");
+    }
+  }
+  if(!blocking) {
+    make_nonblocking(h);
   }
 
   // If want to autodetect IP address
@@ -469,9 +474,18 @@ void make_nonblocking(Hava *hava) {
   if(fcntl(hava->sock,F_SETFL,O_NONBLOCK)==-1) { good=0; }
 #endif
   if(!good) {
-    fprintf(hava->logfile,"nonblocking mode failure.  using async mode...\n");
-    hava->bound=0;
+    fprintf(hava->logfile,"nonblocking mode failure.  If you needed it, app might hang...\n");
   }
+}
+
+void make_exclusive(Hava *hava) {
+  int r,val;
+#ifdef VSTUDIO
+  val=1;
+  r=setsockopt(hava->sock,SOL_SOCKET,SO_EXCLUSIVEADDRUSE,
+                            (char*)&val,sizeof(val));
+  fprintf(hava->logfile,"Status of setting exclusive mode=0 (0=good)\n",r);
+#endif
 }
 
 void print_the_packet(Hava *hava,int len,struct in_addr addr) {
