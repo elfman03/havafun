@@ -146,6 +146,17 @@ unsigned char Hava_button_aton(const char *name);
 //
 const char *Hava_button_ntoa(unsigned char bno);
 
+// Convert a remote code name to a remote hex
+// Zero equals not found
+//
+unsigned short Hava_remote_aton(const char *name);
+
+// Use this to get the code name of a remote hex code
+// Returns "<UNSUPPORTED>" for no match
+// NOTE: RETURNED POINTER MUST BE FREED!!!
+//
+char *Hava_remote_ntoa(unsigned short remote);
+
 // Use this to get the number of an input
 // null string equals no match
 //

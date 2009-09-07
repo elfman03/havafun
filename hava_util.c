@@ -414,6 +414,8 @@ void Hava_sendcmd(Hava *hava, int cmd, unsigned short eA, unsigned short eB) {
        //
        // Update with button number
        //
+       hava->mypkt_butt[BUTTON_REMOTE_OFFSET_HI]=(unsigned char)(eB>>8);
+       hava->mypkt_butt[BUTTON_REMOTE_OFFSET_LO]=(unsigned char)(eB&0x0ff);
        hava->mypkt_butt[BUTTON_OFFSET]=(unsigned char)eA;
        buf=hava->mypkt_butt;
        len=sizeof(button_push);
@@ -425,6 +427,36 @@ void Hava_sendcmd(Hava *hava, int cmd, unsigned short eA, unsigned short eB) {
   tmp=sendto(hava->sock,buf,len,0,
              (struct sockaddr*)&hava->si, sizeof(hava->si)); 
   assert(tmp==len); 
+}
+
+unsigned short Hava_remote_aton(const char *name) {
+  int hi=0;
+  int lo=-1;
+  if(name[0]=='C') { hi=0x01000; }
+  if(name[0]=='S') { hi=0x03000; }
+  if(!hi) { return 0; }
+  lo=atoi(&name[1]);
+  if((lo<=0)||(lo>0x0fff)) { return 0; }
+  return (unsigned short)(hi | lo);
+}
+
+char *Hava_remote_ntoa(unsigned short remote) {
+  int hi,
+      lo;
+  char ch=0;
+  char *p;
+  hi=remote & 0x0f000 ;
+  lo=remote & 0x00fff ;
+  if(hi==0x01000) { ch='C'; }
+  if(hi==0x03000) { ch='S'; }
+  p=malloc(16);
+  assert(p);
+  if(!ch) { 
+    sprintf(p,"<UNSUPPORTED>"); 
+  } else {
+    sprintf(p,"%c%04d",ch,lo);
+  }
+  return p;
 }
 
 const char *Hava_input_ntoa(unsigned char ino) {

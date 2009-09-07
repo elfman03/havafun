@@ -37,10 +37,12 @@ hava_record.exe: hava_record.c hava_util.obj
 
 clean:
 	rm -f hava_util.o  hava_util.obj
-	rm -f hava_channel hava_channel.exe hava_channel_nowin.exe
-	rm -f hava_channel.obj hava_channel.pdb hava_channel.ilk vc80.pdb
-	rm -f hava_channel_nowin.pdb hava_channel_nowin.ilk
-	rm -f hava_record  hava_record.exe
+	rm -f hava_channel            hava_channel.exe hava_channel_nowin.exe
+	rm -f hava_channel.obj        hava_channel.pdb  hava_channel.ilk 
+	rm -f hava_channel_nowin.pdb  hava_channel_nowin.ilk
+	rm -f hava_record      hava_record.exe
 	rm -f hava_record.obj  hava_record.pdb  hava_record.ilk 
-	rm -f hava_info  hava_info.exe
+	rm -f hava_info      hava_info.exe
 	rm -f hava_info.obj  hava_info.pdb  hava_info.ilk 
+	rm -f vc80.pdb  vc90.pdb
+	chmod -x *.c *.h *.html
