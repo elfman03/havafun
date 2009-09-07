@@ -54,10 +54,13 @@ Usage: hava_channel {hava_ip} {input_name|id} {remote_code} [nobind] {command}+
        {remote_code} = The remote control code configured in Hava wizard
                  Example: "S0775" for Dish VIP211
        [nobind] = Optional to tell hava_channel to not even try to bind to port
-       {command}+ = One or more commands : a channel, a button name or code
-                 Example: "PowerOn" "122" "Enter"
+       {command}+ = One or more commands : a CHANNEL, a BUTTON or a WAIT
+                        A CHANNEL is a number. (1-65535)
+                        A BUTTON is a name or 0xXX code from showbuttons.
+                        A WAIT is "wX". X is a number of seconds (1-9) to sleep
+                 Example: "PowerOn" "w3" "122" "w3" "Enter"
 
-   Full example: hava_channel 192.168.1.253 Component S0775 PowerOn 122
+   Full example: hava_channel 192.168.1.253 Component S0775 PowerOn w3 122
 
        hava_channel showbuttons
                  Shows list of available buttons
@@ -90,7 +93,7 @@ In bound mode, you should get back an ack=1.  In unbound mode you will not get a
 <p>
 We have had good luck with some key set top boxes from several different providers.  I believe it will work if your remote code in the Hava wizard starts with an 'S' or a 'C'. 
 <p>
-Note: On windows, there is an additional tool called hava_channel_nowin that will do the same thing without starting a console window.  If you have problems with this one, see the usage instructions for how to get a diagnostic havafun.log file.
+Note: On windows, there is an additional tool called hava_channel_nowin that will do the same thing without starting a console window.  It will return immediately and run in the background.  If you have problems with this one, see the usage instructions for how to get a diagnostic havafun.log file. 
 
 <h2>Hava Record Tool</h2>
 <xmp>

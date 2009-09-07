@@ -8,7 +8,18 @@
 
 # Set this to be your havas address
 #
-HAVA=192.168.1.253
+#HAVA=192.168.1.253
+HAVA=-
+
+#
+# Which input are you using (see hava_channel showinputs)
+#
+INPUT=Component
+
+#
+# What is your remote control code (from Hava wizard)
+#
+REMOTE=S0775
 
 # Set this to be the desired channel
 #
@@ -26,7 +37,11 @@ MOPTS="-quiet -cache 8192"
 
 echo "You must have mplayer installed for this to work (http://mplayerhq.hu)"
 
+#
+# Power on and change to desired channel
+#
+./hava_channel $HAVA $INPUT $REMOTE PowerOn $CHANNEL 
+#
 # record for DURATION seconds onto a pipe.  Have it play in mplayer
 #
-./hava_channel $HAVA $CHANNEL 
 ./hava_record  $HAVA $DURATION - | $MPLAYER $MOPTS -
