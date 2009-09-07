@@ -47,9 +47,18 @@
 
 FILE *gof;
 
-void my_callback(const char *buf,int len) {
-  fwrite(buf,len,1,gof);
-//  if(gof==stdout) { fflush(gof); }
+void my_callback(Hava *hava,const char *buf,int len) {
+  int b;
+  time_t t,now;
+  b=fwrite(buf,len,1,gof);
+  if(b!=1) {
+    t=Hava_get_videoendtime(hava);
+    now=Hava_getnow();
+    if(!t || t>now) {
+      fprintf(stderr,"hava_record write failed... finalizing capture shortly...\n");
+      Hava_set_videoendtime(hava,now);
+    }
+  }
   return;
 }
 

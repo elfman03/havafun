@@ -76,7 +76,7 @@ typedef struct Hava {
   unsigned short vid_seq;    // video sequence number
   int vid_starting;          // Is video just starting
   time_t vid_endtime;        // timeofday when I should stop recording
-  void (*vid_callback)(const char *buf,int len);  // hava_util calls this w/pkts
+  void (*vid_callback)(struct Hava *hava, const char *buf, int len);  // hava_util calls this w/pkts
 } Hava;
 
 // input  --  Target Hava device IP or "-"
@@ -101,9 +101,15 @@ extern int Hava_isbound(Hava *hava);
 extern void Hava_set_videoendtime(Hava *hava, time_t et);
 
 //
+// get timeofday when I should stop recording
+//
+extern time_t Hava_get_videoendtime(Hava *hava);
+
+//
 // Define function pointer to app function that will eat video data (or null)
 //
-extern void Hava_set_videocb(Hava *hava, void (*vcb)(const char *buf,int len));
+extern void Hava_set_videocb(Hava *hava, 
+                             void (*vcb)(Hava *hava, const char *buf,int len));
 
 //
 // Returns the current time in seconds (for computing a record endtime)
