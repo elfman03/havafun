@@ -45,11 +45,21 @@
 #include "hava_util.h"
 
 Usage(FILE *logfile) {
-  fprintf(logfile,"Usage: hava_channel {hava_ipaddr} {input_name|id} {tgt_channel_no} [nobind]\n");
-  fprintf(logfile,"       hava_channel {hava_ipaddr} {input_name|id} {button_name}    [nobind]\n");
-  fprintf(logfile,"       hava_channel {hava_ipaddr} {input_name|id} 0x{button_num}   [nobind]\n");
+  fprintf(logfile,"Usage: hava_channel {hava_ip} {input_name|id} {remote_code} [nobind] {command}+\n\n");
+  fprintf(logfile,"       {hava_ip} = the IP address of your hava\n");
+  fprintf(logfile,"                 Example: \"192.168.1.253\" for my hava\n");
+  fprintf(logfile,"       {input_name|id} = Which hava video source (see hava showinputs)\n");
+  fprintf(logfile,"                 Example: \"Component\" or 3 for Component input\n");
+  fprintf(logfile,"       {remote_code} = The remote control code configured in Hava wizard\n");
+  fprintf(logfile,"                 Example: \"S0775\" for Dish VIP211\n");
+  fprintf(logfile,"       [nobind] = Optional to tell hava_channel to not even try to bind to port\n");
+  fprintf(logfile,"       {command}+ = One or more commands : a channel, a button name or code\n");
+  fprintf(logfile,"                 Example: \"PowerOn\" \"122\" \"Enter\"\n");
+  fprintf(logfile,"\n   Full example: hava_channel 192.168.1.253 Component S0775 PowerOn 122\n\n");
   fprintf(logfile,"       hava_channel showbuttons\n");
-  fprintf(logfile,"       hava_channel showinputs\n\n");
+  fprintf(logfile,"                 Shows list of available buttons\n");
+  fprintf(logfile,"       hava_channel showinputs\n");
+  fprintf(logfile,"                 Shows list of available inputs\n\n");
   fprintf(logfile,"NOTE: If you use '-' for the ipaddr, it will try to autodetect\n");
   fprintf(logfile,"      This mode is not recommended but can be useful for testing\n");
   fprintf(logfile,"      It will crash if you are using the hava player at the same time.\n\n");
@@ -105,6 +115,10 @@ void build_argc_argv(LPSTR args) {
       argv[1][i]=args[i];
       if(args[i]==' ') {
         argv[1][i]=0;
+        //
+        // skip multiple spaces
+        //
+        for(;args[i+1] && args[i+1]==' ';i++) { }
         if(argc<MAXARG) {
           argv[argc]=&argv[1][i+1];
         }
@@ -125,8 +139,10 @@ main(int argc, char *argv[])
   Hava *hava;
   int binding=1,
       channy,
-      input=-2;
-  unsigned short butt=0;
+      input=-2,
+      aindex;
+  unsigned short remote,
+                 butt;
   FILE *f;
 
   //
@@ -148,12 +164,15 @@ main(int argc, char *argv[])
 
   Hava_startup(logfile);
 
-  if(argc==5 && !strcmp(argv[4],"nobind")) { 
-    binding=0;
-    argc--;
-  }
+  if(argc<5) { Usage(logfile); }
 
-  if(argc!=4) { Usage(logfile); }
+  if(!strcmp(argv[4],"nobind")) { 
+    if(argc<6) { Usage(logfile); }
+    binding=0;
+    aindex=5;
+  } else {
+    aindex=4;
+  }
 
   // check for input name
   //
@@ -163,40 +182,60 @@ main(int argc, char *argv[])
     Usage(logfile);
   }
 
-  // check for button command
+  // check for remote code
   //
-  butt=Hava_button_aton(argv[3]);
-
-  if(butt==0) {   
-    //
-    // not button...  check for channel command...
-    //
-    channy=-1;
-    channy=atoi(argv[3]);
-    if(channy<=0)    { Usage(logfile); }
-    if(channy>65535) { Usage(logfile); }
+  remote=Hava_remote_aton(argv[3]);
+  if(remote==0) {
+    fprintf(logfile,"Unknown remote %s\n\n",argv[3]);
+    Usage(logfile);
   }
-  
+
   hava=Hava_alloc(argv[1],binding,0,logfile,0);
-  //
-  // Should work even unbound but cannot check ack status
-  //
-  // assert(Hava_isbound(hava));
 
-  Hava_sendcmd(hava, HAVA_INIT, 0, 0); 
-  fprintf(logfile,"Sending Init request to %s\n",argv[1]);
-  if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_INIT,0); }
+  for(;aindex<argc;) {
 
-  if(butt) {
-    fprintf(logfile,"Sending button=%s(0x%02x) request to %s(ANY?)\n",
-                    Hava_button_ntoa(butt),butt,argv[1]);
-    Hava_sendcmd(hava, HAVA_BUTTON, butt, (unsigned short)input); 
-  } else {
-    fprintf(logfile,"Sending channel=%d(0x%x) to %s(%s)\n",
-                    channy,channy,argv[1],Hava_input_ntoa(input));
-    Hava_sendcmd(hava, HAVA_CHANNEL, (unsigned short)channy, (unsigned short)input); 
+    // check for button command
+    //
+    butt=Hava_button_aton(argv[aindex]);
+
+    if(butt==0) {   
+      //
+      // not button...  check for channel command...
+      //
+      channy=-1;
+      channy=atoi(argv[aindex]);
+      if(channy<=0 || channy>65536)  { 
+        fprintf(logfile,"Bad button/channel at argv[%d] : \"%s\"\n",aindex,argv[aindex]);
+        Usage(logfile); 
+      }
+    }
+  
+    Hava_sendcmd(hava, HAVA_INIT, 0, 0); 
+    fprintf(logfile,"Sending Init request to %s\n",argv[1]);
+    if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_INIT,0); }
+
+    if(butt) {
+      char *p=Hava_remote_ntoa(remote);
+      if(!p) { Usage(logfile); }
+      fprintf(logfile,"Sending button=%s(0x%02x) request to %s(%s/0x%04x)\n",
+                      Hava_button_ntoa(butt),butt,argv[1],p,remote);
+      free(p);
+      Hava_sendcmd(hava, HAVA_BUTTON, butt, remote); 
+    } else {
+      fprintf(logfile,"Sending channel=%d(0x%x) to %s(%s/0x%02x)\n",
+                      channy,channy,argv[1],Hava_input_ntoa(input),input);
+      Hava_sendcmd(hava, HAVA_CHANNEL, (unsigned short)channy, (unsigned short)input); 
+    }
+    if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_CHANBUTT,0); }
+    //
+    // With multiple commands sleep a sec in between
+    //
+    aindex++;
+    if(aindex<argc) {
+      fprintf(logfile,"Waiting 3 seconds before next command\n");
+      MSLEEP(3000);
+    }
   }
-  if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_CHANBUTT,0); }
 
   Hava_close(hava);
   Hava_finishup();

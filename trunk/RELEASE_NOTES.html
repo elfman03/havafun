@@ -3,9 +3,9 @@
 </head>
 <html>
 <h1>Hava Fun</h1>
-Purpose:  Tell a hava streaming device to change channels or press buttons or send a high quality video stream.
+Purpose:  Talk directly to the Hava video streaming device, control key features from the command line (particularly on linux), grab high quality "local" video stream (particularly on linux) for eventual inclusion into MythTV.  
 <p>
-For testing purposes, this package includes several tools and scripts.
+For testing and sample purposes, this package includes several tools and scripts. 
 <ul>
 <li> <b>Linux</b>
 <ul>
@@ -21,7 +21,7 @@ For testing purposes, this package includes several tools and scripts.
 <li> hava_info.exe -- Diagnogstic tool to print out some info hava reports
 <li> hava_channel.exe -- Change channels or press key buttons (e.g., power)
 <li> hava_channel_nowin.exe -- Same as hava_channel.exe but without a console
-<li> example_live.cmd -- BROKEN!!!  Windows example that TRIES to view mpeg stream 
+<li> example_live.cmd -- Windows example that views the mpeg stream 
 </ul>
 </ul>
 <h2>Prerequisites:</h2>
@@ -33,7 +33,6 @@ For testing purposes, this package includes several tools and scripts.
 <li> For recording/viewing:
 <a href="http://mplayerhq.hu">MPlayer/Mencoder</a> installed.
 <ul>
-<li> NOTE: Windows recording/viewing will not work...  Out of order packets require making a reorder buffer to resolve.  Linux is working much better without a reorder buffer.
 </ul>
 </ul>
 <h2>Hava Info Tool</h2>
@@ -46,11 +45,24 @@ This dumps the periodic broadcast packet from your hava and the response to the 
 
 <h2>Hava Channel Tool</h2>
 <xmp>
-Usage: hava_channel {hava_dotform_ipaddr} {input_name|id} {tgt_channel_no} [nobind]
-       hava_channel {hava_dotform_ipaddr} {input_name|id} {button_name}    [nobind]
-       hava_channel {hava_dotform_ipaddr} {input_name|id} 0x{button_num}   [nobind]
+Usage: hava_channel {hava_ip} {input_name|id} {remote_code} [nobind] {command}+
+
+       {hava_ip} = the IP address of your hava
+                 Example: "192.168.1.253" for my hava
+       {input_name|id} = Which hava video source (see hava showinputs)
+                 Example: "Component" or 3 for Component input
+       {remote_code} = The remote control code configured in Hava wizard
+                 Example: "S0775" for Dish VIP211
+       [nobind] = Optional to tell hava_channel to not even try to bind to port
+       {command}+ = One or more commands : a channel, a button name or code
+                 Example: "PowerOn" "122" "Enter"
+
+   Full example: hava_channel 192.168.1.253 Component S0775 PowerOn 122
+
        hava_channel showbuttons
+                 Shows list of available buttons
        hava_channel showinputs
+                 Shows list of available inputs
 
 NOTE: If you use '-' for the ipaddr, it will try to autodetect
       This mode is not recommended but can be useful for testing
@@ -58,9 +70,28 @@ NOTE: If you use '-' for the ipaddr, it will try to autodetect
 
 NOTE: Create file named "hava_fun.logme" allow logging to "hava_fun.log"
 </xmp>
-The first one lets you choose a channel.  Unless you are playing a video stream at the same time that you invoke hava_channel, you should get back an ack=1.  If you are playing a video stream at the same time, we cannot check for acknowledgements..
+The first one lets you choose a channel.  It operates in two modes.
+<ul><li> 
+   Bound mode 
+</li><ul><li> 
+  Reports back acknowledgement status that Hava has accepted the command</li>
+</li><li>
+  This mode is used if no other tool has reserved port 1778 (e.g., no conflict with other havafun applications, or the official Monsoon Multimedia Hava app like the Hava player or its underlying "havasvc")
+</li></ul>
+<li> 
+  Unbound mode
+<ul><li> 
+  Does not monitor acknowledgement status
+</li><li> 
+  This mode is used if another tool is using port 1778 or if the user specifies the "nobind" parameter.
+</li></ul>
+</ul>
+In bound mode, you should get back an ack=1.  In unbound mode you will not get any acknowledgements that the command was accepted by Hava.  You will just get the message that the command was sent.
+<p>
+We have had good luck with some key set top boxes from several different providers.  I believe it will work if your remote code in the Hava wizard starts with an 'S' or a 'C'. 
+<p>
+Note: On windows, there is an additional tool called hava_channel_nowin that will do the same thing without starting a console window.  If you have problems with this one, see the usage instructions for how to get a diagnostic havafun.log file.
 
-Note: On windows, there is an additional tool called hava_channel_nowin that will do the same thing without starting a console window.
 <h2>Hava Record Tool</h2>
 <xmp>
 Usage: hava_record <hava_dotform_ipaddr> <duration_sec> <tgt_mpeg>
@@ -73,8 +104,21 @@ NOTE: If you use '-' for the ipaddr, it will try to autodetect
 </xmp>
 The first one lets you record to a file.  This file will not be indexed and will start in the middle of a frame (it will play back with mplayer but little else.  Mencoder can reindex it so that it can play in more places...
 <p>
-The second one does the same thing but sends the output to stdout for piping into mplayer or mencoder.  See the example scripts.
-
+The second one does the same thing but sends the output to stdout for piping into mplayer or mencoder.  See the example scripts and modify them for your Hava's IP address and where you have mplayer installed.
+<ul>
+<li>example_live.sh, example_live.cmd</li>
+<ul><li>
+  This one grabs the mpeg stream and shows it in mplayer (see prerequisites).
+</li></ul>
+<li>example_record.sh</li>
+<ul><li>
+  This one grabs the mpeg stream and uses mencoder to index and finalize it.
+</li></ul>
+<li>example_combined.sh</li>
+<ul><li>
+  This one changes channels then shows the live stream.
+</li></ul>
+</ul>
 <h1>Long term goals: </h1>
 
 The end target use is to use the hava_util.h interface to extend a video streaming program like MythTV to support Hava (I use it today in MythTV for channel changing and hope to start using it for video capture).  
@@ -83,14 +127,33 @@ IP address.  Then use one of the following forms to tell the hava what to do.
 
 <h1>Release Details</h1>
 <hr>
-<h2>Release alpha3 -- t.b.d.</h2>
-NOTE: There is new syntax for hava_channel
+<h2>Release alpha3 -- 9/7/2009</h2>
+<font color=red><h3><b>
+NOTE: There is new syntax for hava_channel...  see below...
+<br>
+NOTE: There is new syntax for hava_channel...  see below...
+<br>
+NOTE: There is new syntax for hava_channel...  see below...
+<br>
+NOTE: There is new syntax for hava_channel...  see below...
+<br>
+NOTE: There is new syntax for hava_channel...  see below...
+</b></h3></font>
 <p>
-Three major changes.  First, dramatic progress made on video capture.  Found some socket usage flaws and determined that we need to use blocking sockets to avoid packet loss.  Secondly, progress changing the hava_channel too support the different inputs of hava.  Finally, added more buttons to hava_channel thanks to jlpatte at Hava forums.
+Three major changes.  
+<ul><li>
+  Dramatic progress made on video capture.  Found some socket usage flaws and determined that we need to use blocking sockets to avoid packet loss.  
+</li><li>
+  Progress changing the hava_channel to support the different inputs of hava.  
+</li><li>
+  Added more buttons to hava_channel thanks to jlpatte at Hava forums.
+</li></ul>
 <p><b>Fixed:</b>
 <ul>
 <li> Informational message on inability to bind in hava_info
 <li> Fix socket binding conflict with Monsoon's havasvc on Vista
+<li> Channel changes to non-component input now work (thanks to JasonMeudt over at Hava forums for testing a number of attempts)
+<li> Button presses to non-Dish devices now work (thanks to JasonMeudt over at Hava forums for testing a number of attempts)
 <li> Added hava_channel_nowin logfile option (create file called hava_fun.logme in current directory in order for hava_channel_nowin to write details to a log.
 <li> Changed buttons (Power, PowerOn, PowerOff, Select) over to new names and implemented it as an extensible list to simplify new button additions later.
 <li> Thanks to jlpatte at Hava forums, added a bunch of buttons and ability to choose button by hex instead of by name.
@@ -99,10 +162,11 @@ Three major changes.  First, dramatic progress made on video capture.  Found som
 </ul>
 <p><b>Known issues:</b>
 <ul>
-<li> Some channel change issues seen... (havas that aren't connected to component input maybe?
+<li> A request has come in (SudaNim on Hava forums) to try to get the NTSC tuner to change stations too.  Thats a big unknown at the moment.
+<li> Now that Hava device is choosing the throttling of video records, need to verify that it is throttling up to close to the rate that the Hava player gets.
 </ul>
 <p>
-Tested on Windows XP, and Ubuntu 8.10 connecting to a Hava Wireless HD (hardware version 1003100, firmware version 270.322-32).   The Hava Wireless HD was connected to component (YPbPr) inputs and controls a Dish vip211 receiver.
+Main test environment Ubuntu 8.10 and Windows XP connecting to a Hava Wireless HD (hardware version 1003100, firmware version 270.322-32).   The Hava Wireless HD was connected to component (YPbPr) inputs and controls a Dish vip211 receiver. Others have reported limited success channel changing on other inputs and success with different set top boxes.
 <hr>
 <h2>Release alpha2 -- 8/30/2009</h2>
 First version with record capability.  Added some sample play scripts and a hava_info tool for diagnostics.  Corresponds to checkin svn revision 13.
