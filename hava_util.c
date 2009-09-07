@@ -136,7 +136,12 @@ extern void Hava_set_videoendtime(Hava *hava, time_t et) {
   hava->vid_endtime=et;
 }
 
-void Hava_set_videocb(Hava *hava, void (*vcb)(const char *buf,int len)) {
+time_t Hava_get_videoendtime(Hava *hava) {
+  return hava->vid_endtime;
+}
+
+void Hava_set_videocb(Hava *hava, 
+                      void (*vcb)(Hava *hava, const char *buf, int len)) {
   hava->vid_callback=vcb;
   hava->vid_starting=1;
 }
@@ -201,13 +206,17 @@ int check_for_end(Hava *hava) {
   return 0;
 }
 
-// return 0 if it was not a video frame
-// return 1 if we processed the packet 
-// return 3 if it is time to exit
+#define HAVA_VIDEO_NOPE 0
+#define HAVA_VIDEO_YES  1
+#define HAVA_VIDEO_END  3
+
+// return HAVA_VIDEO_NOPE if it was not a video frame
+// return HAVA_VIDEO_YES  if we processed the packet 
+// return HAVA_VIDEO_END  if it is time to exit
 //
 int process_video_packet(Hava *hava, int len) {
   int tmp;
-  int retval=1;
+  int retval=HAVA_VIDEO_YES;
   unsigned short seq;
   FrameHeader *fh;
   fh=(FrameHeader*)&hava->buf[0];
@@ -227,13 +236,13 @@ int process_video_packet(Hava *hava, int len) {
   fprintf(hava->logfile,"Send Cont Permission 0x%04x 0x%02x pkt\n",
                         hava->vid_seq,hava->mypkt_cont[Xa]);
 #endif
-    return 1;
+    return HAVA_VIDEO_YES;
   }
   //
   // Now just worry about video payload packets
   //
   if((fh->cmdhi!=0x03) || (fh->cmdlo!=0x02)) {
-    return 0;
+    return HAVA_VIDEO_NOPE;
   }
   //
   // Only two known packet sizes
@@ -245,7 +254,7 @@ int process_video_packet(Hava *hava, int len) {
   //
   if(hava->vid_starting) {
     if(hava->vid_callback) { 
-      hava->vid_callback(mpeg_hdr,sizeof(mpeg_hdr)); 
+      hava->vid_callback(hava,mpeg_hdr,sizeof(mpeg_hdr)); 
     }
     hava->vid_seq=seq;
     hava->vid_starting=0;
@@ -280,10 +289,10 @@ int process_video_packet(Hava *hava, int len) {
                hava->mypkt_cont[SEQ_OFFSET],
                hava->mypkt_cont[SEQ_OFFSET+1]);
 #endif
-    if(check_for_end(hava)) { retval=3; }
+    if(check_for_end(hava)) { retval=HAVA_VIDEO_END; }
   }
   if(hava->vid_callback) { 
-    hava->vid_callback(&fh->payload,len-16); 
+    hava->vid_callback(hava,&fh->payload,len-16); 
   }
   return retval;
 }
@@ -369,7 +378,7 @@ int Hava_loop(Hava *hava, unsigned short magic, int verbose) {
       }
       if(!done) {
         wasvideo=process_video_packet(hava, len);
-        if(wasvideo==3) { 
+        if(wasvideo==HAVA_VIDEO_END) { 
           done=1; 
         }
       }
@@ -400,7 +409,7 @@ void Hava_sendcmd(Hava *hava, int cmd, unsigned short eA, unsigned short eB) {
        break;
     case HAVA_CHANNEL:
        //
-       // Update with channel number
+       // Update with channel number and input number
        //
        hava->mypkt_chan[CHANNEL_OFFSET]=0;
        hava->mypkt_chan[CHANNEL_OFFSET+1]=0;
@@ -412,7 +421,7 @@ void Hava_sendcmd(Hava *hava, int cmd, unsigned short eA, unsigned short eB) {
        break;
     case HAVA_BUTTON:
        //
-       // Update with button number
+       // Update with button number and remote control codeset
        //
        hava->mypkt_butt[BUTTON_REMOTE_OFFSET_HI]=(unsigned char)(eB>>8);
        hava->mypkt_butt[BUTTON_REMOTE_OFFSET_LO]=(unsigned char)(eB&0x0ff);
@@ -423,7 +432,9 @@ void Hava_sendcmd(Hava *hava, int cmd, unsigned short eA, unsigned short eB) {
     default:
       assert(0);
   }
-//  fprintf(hava->logfile,"send %d bytes\n",len); 
+#ifdef DEBUG_MODE 
+  fprintf(hava->logfile,"send %d bytes\n",len); 
+#endif
   tmp=sendto(hava->sock,buf,len,0,
              (struct sockaddr*)&hava->si, sizeof(hava->si)); 
   assert(tmp==len); 

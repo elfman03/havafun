@@ -45,4 +45,4 @@ clean:
 	rm -f hava_info      hava_info.exe
 	rm -f hava_info.obj  hava_info.pdb  hava_info.ilk 
 	rm -f vc80.pdb  vc90.pdb
-	chmod -x *.c *.h *.html
+	chmod -x *.c *.h *.html *.txt Makefile
