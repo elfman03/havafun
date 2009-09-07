@@ -53,9 +53,12 @@ Usage(FILE *logfile) {
   fprintf(logfile,"       {remote_code} = The remote control code configured in Hava wizard\n");
   fprintf(logfile,"                 Example: \"S0775\" for Dish VIP211\n");
   fprintf(logfile,"       [nobind] = Optional to tell hava_channel to not even try to bind to port\n");
-  fprintf(logfile,"       {command}+ = One or more commands : a channel, a button name or code\n");
-  fprintf(logfile,"                 Example: \"PowerOn\" \"122\" \"Enter\"\n");
-  fprintf(logfile,"\n   Full example: hava_channel 192.168.1.253 Component S0775 PowerOn 122\n\n");
+  fprintf(logfile,"       {command}+ = One or more commands : a CHANNEL, a BUTTON or a WAIT\n");
+  fprintf(logfile,"                        A CHANNEL is a number. (1-65535)\n");
+  fprintf(logfile,"                        A BUTTON is a name or 0xXX code from showbuttons.\n");
+  fprintf(logfile,"                        A WAIT is \"wX\". X is a number of seconds (1-9) to sleep\n");
+  fprintf(logfile,"                 Example: \"PowerOn\" \"w3\" \"122\" \"w3\" \"Enter\"\n");
+  fprintf(logfile,"\n   Full example: hava_channel 192.168.1.253 Component S0775 PowerOn w3 122\n\n");
   fprintf(logfile,"       hava_channel showbuttons\n");
   fprintf(logfile,"                 Shows list of available buttons\n");
   fprintf(logfile,"       hava_channel showinputs\n");
@@ -140,7 +143,8 @@ main(int argc, char *argv[])
   int binding=1,
       channy,
       input=-2,
-      aindex;
+      aindex,
+      sleepy;
   unsigned short remote,
                  butt;
   FILE *f;
@@ -194,13 +198,26 @@ main(int argc, char *argv[])
 
   for(;aindex<argc;) {
 
+    sleepy=0;
+    if(argv[aindex][0]=='w') {
+      sleepy=argv[aindex][1]-'0';
+      if(sleepy<=0 || sleepy>9) {
+        fprintf(logfile,"Bad wait at argv[%d] : \"%s\"\n",aindex,argv[aindex]);
+        Usage(logfile);
+      }
+    }
+
     // check for button command
     //
-    butt=Hava_button_aton(argv[aindex]);
+    if(sleepy) {
+      butt=0;
+    } else {
+      butt=Hava_button_aton(argv[aindex]);
+    }
 
-    if(butt==0) {   
+    if(sleepy==0 && butt==0) {   
       //
-      // not button...  check for channel command...
+      // not sleep or button...  check for channel command...
       //
       channy=-1;
       channy=atoi(argv[aindex]);
@@ -210,31 +227,30 @@ main(int argc, char *argv[])
       }
     }
   
-    Hava_sendcmd(hava, HAVA_INIT, 0, 0); 
-    fprintf(logfile,"Sending Init request to %s\n",argv[1]);
-    if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_INIT,0); }
-
-    if(butt) {
-      char *p=Hava_remote_ntoa(remote);
-      if(!p) { Usage(logfile); }
-      fprintf(logfile,"Sending button=%s(0x%02x) request to %s(%s/0x%04x)\n",
-                      Hava_button_ntoa(butt),butt,argv[1],p,remote);
-      free(p);
-      Hava_sendcmd(hava, HAVA_BUTTON, butt, remote); 
+    if(sleepy) {
+      fprintf(logfile,"Waiting %d seconds before next command\n",sleepy);
+      MSLEEP(sleepy*1000);
     } else {
-      fprintf(logfile,"Sending channel=%d(0x%x) to %s(%s/0x%02x)\n",
-                      channy,channy,argv[1],Hava_input_ntoa(input),input);
-      Hava_sendcmd(hava, HAVA_CHANNEL, (unsigned short)channy, (unsigned short)input); 
+      Hava_sendcmd(hava, HAVA_INIT, 0, 0); 
+      fprintf(logfile,"Sending Init request to %s\n",argv[1]);
+      if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_INIT,0); }
+
+      if(butt) {
+        char *p=Hava_remote_ntoa(remote);
+        if(!p) { Usage(logfile); }
+        fprintf(logfile,"Sending button=%s(0x%02x) request to %s(%s/0x%04x)\n",
+                        Hava_button_ntoa(butt),butt,argv[1],p,remote);
+        free(p);
+        Hava_sendcmd(hava, HAVA_BUTTON, butt, remote); 
+      } else {
+        fprintf(logfile,"Sending channel=%d(0x%x) to %s(%s/0x%02x)\n",
+                        channy,channy,argv[1],Hava_input_ntoa(input),input);
+        Hava_sendcmd(hava, HAVA_CHANNEL, (unsigned short)channy, (unsigned short)input); 
+      }
+      if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_CHANBUTT,0); }
     }
-    if(Hava_isbound(hava)) { Hava_loop(hava,HAVA_MAGIC_CHANBUTT,0); }
-    //
-    // With multiple commands sleep a sec in between
-    //
     aindex++;
-    if(aindex<argc) {
-      fprintf(logfile,"Waiting 3 seconds before next command\n");
-      MSLEEP(3000);
-    }
+    fprintf(logfile,"\n");
   }
 
   Hava_close(hava);
