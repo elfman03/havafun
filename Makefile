@@ -4,7 +4,7 @@ RELEASE=alpha3
 
 release: 
 	zip dist/havafun-$(RELEASE)-win.zip *.exe *.cmd LICENSE.txt RELEASE_NOTES.html
-	tar -czvf dist/havafun-$(RELEASE)-lin.tar.gz hava_channel hava_record hava_info *.sh RELEASE_NOTES.html
+	tar -czvf dist/havafun-$(RELEASE)-lin.tar.gz hava_channel hava_record hava_info *.sh LICENSE.txt RELEASE_NOTES.html
 
 windows: hava_channel.exe hava_channel_nowin.exe hava_record.exe hava_info.exe
 

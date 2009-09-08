@@ -44,6 +44,7 @@
 #include <stdio.h>
 #include <assert.h>
 
+//#define DEBUG_MODE_MONITOR_BANDWIDTH 1
 //#define DEBUG_MODE 1
 //#define DEBUG_MODE_VERBOSE 1
 
@@ -210,6 +211,10 @@ int check_for_end(Hava *hava) {
 #define HAVA_VIDEO_YES  1
 #define HAVA_VIDEO_END  3
 
+#ifdef DEBUG_MODE_MONITOR_BANDWIDTH 
+  int debug_gctr=0;
+#endif
+
 // return HAVA_VIDEO_NOPE if it was not a video frame
 // return HAVA_VIDEO_YES  if we processed the packet 
 // return HAVA_VIDEO_END  if it is time to exit
@@ -283,6 +288,14 @@ int process_video_packet(Hava *hava, int len) {
     hava->mypkt_cont[Xa]=fh->next_time_desired;
     hava->mypkt_cont[Xb]=fh->next_time_desired;
     Hava_sendcmd(hava,HAVA_CONT_VIDEO,0,0); 
+
+#ifdef DEBUG_MODE_MONITOR_BANDWIDTH 
+    debug_gctr++;
+    if(debug_gctr==100) { 
+      fprintf(hava->logfile,"NTD=0x%02x\n",fh->next_time_desired); 
+      debug_gctr=0; 
+    }
+#endif
 #ifdef DEBUG_MODE
     fprintf(hava->logfile,"sending continuation(0x%02x) from 0x%02x%02x\n",
                fh->next_time_desired,
