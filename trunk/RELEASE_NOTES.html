@@ -131,23 +131,15 @@ IP address.  Then use one of the following forms to tell the hava what to do.
 <h1>Release Details</h1>
 <hr>
 <h2>Release alpha3 -- 9/7/2009</h2>
-<font color=red><h3><b>
-NOTE: There is new syntax for hava_channel...  see below...
-<br>
-NOTE: There is new syntax for hava_channel...  see below...
-<br>
-NOTE: There is new syntax for hava_channel...  see below...
-<br>
-NOTE: There is new syntax for hava_channel...  see below...
-<br>
-NOTE: There is new syntax for hava_channel...  see below...
-</b></h3></font>
+<font color=red><h3>
+NOTE: There is new syntax for hava_channel...  see above...
+</h3></font>
 <p>
-Three major changes.  
+Corresponds to SVN revision 25.  Three major changes...
 <ul><li>
   Dramatic progress made on video capture.  Found some socket usage flaws and determined that we need to use blocking sockets to avoid packet loss.  
 </li><li>
-  Progress changing the hava_channel to support the different inputs of hava.  
+  Dramatic progress making hava_channel support the different inputs and target remote control codes.  Thanks to JasonMeudt at Hava forums for testing a bunch of attempts.
 </li><li>
   Added more buttons to hava_channel thanks to jlpatte at Hava forums.
 </li></ul>
@@ -162,17 +154,18 @@ Three major changes.
 <li> Thanks to jlpatte at Hava forums, added a bunch of buttons and ability to choose button by hex instead of by name.
 <li> Avoid nonblocking sockets for several of the tools (recording in particular gets odd timeout behavior)
 <li> Let Hava choose the packet throttling rate on recording
+<li> Lots more little things
 </ul>
 <p><b>Known issues:</b>
 <ul>
 <li> A request has come in (SudaNim on Hava forums) to try to get the NTSC tuner to change stations too.  Thats a big unknown at the moment.
-<li> Now that Hava device is choosing the throttling of video records, need to verify that it is throttling up to close to the rate that the Hava player gets.
+<li> Now that Hava device is choosing the throttling of video records, need to verify that it is throttling up to close to the rate that the Hava player gets.  Its currently only throttling up to about 0x0b instead of about 0x25.
 </ul>
 <p>
 Main test environment Ubuntu 8.10 and Windows XP connecting to a Hava Wireless HD (hardware version 1003100, firmware version 270.322-32).   The Hava Wireless HD was connected to component (YPbPr) inputs and controls a Dish vip211 receiver. Others have reported limited success channel changing on other inputs and success with different set top boxes.
 <hr>
 <h2>Release alpha2 -- 8/30/2009</h2>
-First version with record capability.  Added some sample play scripts and a hava_info tool for diagnostics.  Corresponds to checkin svn revision 13.
+First version with record capability.  Added some sample play scripts and a hava_info tool for diagnostics.  Corresponds to checkin SVN revision 13.
 <p><b>Fixed:</b>
 <ul>
 <li> Windows channel changing without a console window popup (sagetv)
