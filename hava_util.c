@@ -191,7 +191,31 @@ unsigned long Hava_getnow() {
 #endif
 }
 
+int print_stats(Hava *hava,time_t now,int interval) {
+  int secs;
+  fprintf(hava->logfile,"Last continuation sent: 0x%02x (hava asked for 0x%02x)\n", 
+                         hava->mypkt_cont[Xa],
+                         ((FrameHeader*)&hava->buf[0])->next_time_desired);
+
+  if(interval) {
+    fprintf(hava->logfile,"Interval video bandwidth -- (%ld bytes)/(60 sec) -- %0.2lf Mbps\n",
+                           hava->vid_minbytes,
+                          (hava->vid_minbytes*8.0)/(1024*1024*60));
+  }
+  secs=now-hava->vid_starttime;
+  fprintf(hava->logfile,  "Total video bandwidth    -- (%ld bytes)/(%d sec) -- %0.2lf Mbps\n",
+                        hava->vid_totbytes, secs,
+                        (hava->vid_totbytes*8.0)/(1024*1024*secs));
+  fprintf(hava->logfile,  "---------------------------------------------\n");
+}
+
 int check_for_end(Hava *hava) {
+  time_t now=Hava_getnow();
+  if(now >= hava->vid_stattime) {
+    print_stats(hava,now,1);
+    hava->vid_stattime=now+60;
+    hava->vid_minbytes=0;
+  }
   //
   // First check run forever mode
   //
@@ -201,8 +225,9 @@ int check_for_end(Hava *hava) {
   //
   // Now handle the timed mode
   //
-  if(Hava_getnow() > hava->vid_endtime) {
+  if(now > hava->vid_endtime) {
     return 1;
+    print_stats(hava,now,0);
   }
   return 0;
 }
@@ -263,6 +288,10 @@ int process_video_packet(Hava *hava, int len) {
     }
     hava->vid_seq=seq;
     hava->vid_starting=0;
+    hava->vid_starttime=Hava_getnow();
+    hava->vid_stattime=hava->vid_starttime+60;
+    hava->vid_minbytes=0;
+    hava->vid_totbytes=0;
   }
   //
   // Sequence check
@@ -279,14 +308,32 @@ int process_video_packet(Hava *hava, int len) {
   fprintf(hava->logfile,"SEQUENCE ID=%04x (expected 0x%04x) remaining=%d\n",seq,hava->vid_seq,fh->stream_remaining);
 #endif
 
+  hava->vid_minbytes+=(len-16);
+  hava->vid_totbytes+=(len-16);
   seq++;
   hava->vid_seq=seq;
   if(fh->stream_remaining==0) {
     hava->mypkt_cont[SEQ_OFFSET+1]=(seq & 0x0ff);
     hava->mypkt_cont[SEQ_OFFSET]=((seq>>8) & 0x0ff);
-    hava->mypkt_cont[XM]=fh->next_time_desired-1;
-    hava->mypkt_cont[Xa]=fh->next_time_desired;
-    hava->mypkt_cont[Xb]=fh->next_time_desired;
+//
+// There is something we are missing here in the protocol.  When we
+// use the byte that Hava asks for, it never really grows above about 0xa
+// When using the real player from Hava, it grows up to 0x20-0x30.
+// Presumably there are some additional packets needed to tell Hava
+// to get more aggressive...
+//
+//    hava->mypkt_cont[XM]=fh->next_time_desired-1;
+//    hava->mypkt_cont[Xa]=fh->next_time_desired;
+//    hava->mypkt_cont[Xb]=fh->next_time_desired;
+//    
+// With this firmware, if we just say use a bunch of packets(0x50), I'm able to
+// see 8Mbps coming from Hava (for high def content and about 6Mbps for 
+// standard def content.  We will need to watch this trick on future firmwares
+// because it is probably not right...
+//
+    hava->mypkt_cont[XM]=0x04f;
+    hava->mypkt_cont[Xa]=0x050;
+    hava->mypkt_cont[Xb]=0x050;
     Hava_sendcmd(hava,HAVA_CONT_VIDEO,0,0); 
 
 #ifdef DEBUG_MODE_MONITOR_BANDWIDTH 
