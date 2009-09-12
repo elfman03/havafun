@@ -63,7 +63,14 @@ void my_callback(Hava *hava,const char *buf,int len) {
 }
 
 Usage() {
-  fprintf(stderr,"Usage: hava_record <hava_dotform_ipaddr> <duration_sec> <tgt_mpeg>\n\n");
+  fprintf(stderr,"Usage: hava_record {hava_ipaddr} {quality} {duration_sec} {tgt_mpeg}\n\n");
+  fprintf(stderr,"      {hava_ipaddr} is expressed in dot form (e.g., 192.168.1.253)\n");
+  fprintf(stderr,"      {quality}     is expressed in hex as 0x00 or between '0x10'-'0x50'\n");
+  fprintf(stderr,"                    Numbers >=0x30 seem to achieve the max 8Mbps thruput\n");
+  fprintf(stderr,"                    Use small numbers (~0x10-0x15) if you experience video loss\n");
+  fprintf(stderr,"                    Use 0x00 to try to figure it out (lowish quality now)\n");
+  fprintf(stderr,"      {duration}    is expressed in seconds.  Zero means go forever\n");
+  fprintf(stderr,"      {tgt_mpeg}    is a file name that will be written\n\n");
   fprintf(stderr,"NOTE: If you use '-' for the <tgt_mpg>, it will send the output to stdout\n");
   fprintf(stderr,"      This is recommended for piping into mplayer/mencoder\n\n");
   fprintf(stderr,"NOTE: If you use '-' for the ipaddr, it will try to autodetect\n");
@@ -75,18 +82,27 @@ Usage() {
 main(int argc, char *argv[]) {
   Hava *hava;
   int tmp,tis=-1;
+  unsigned char quality=0;
   struct timeval tv;
 
   Hava_startup(stderr);
 
-  if(argc!=4) { Usage(); }
+  if(argc!=5) { Usage(); }
 
-  tis=atoi(argv[2]);
+  //
+  // Handle the quality parameter
+  //
+  if(argv[2][0]!='0' || argv[2][1]!='x') { Usage(); }
+  sscanf(argv[2],"0x%x",&tmp);
+  if(tmp && (tmp<0x10 || tmp>0x50)) { Usage(); }
+  quality=(unsigned char)tmp;
+
+  tis=atoi(argv[3]);
   if(tis<0) { Usage(); }
 
   // open output file (pipeout with -)
   //
-  if(argv[3][0]=='-' && argv[3][1]==0) {
+  if(argv[4][0]=='-' && argv[4][1]==0) {
 #ifdef VSTUDIO
     tmp=fileno(stdout);
     if(!isatty(tmp))
@@ -94,13 +110,14 @@ main(int argc, char *argv[]) {
 #endif
     gof=stdout;
   } else {
-    gof=fopen(argv[3],"wb");
+    gof=fopen(argv[4],"wb");
   }
   assert(gof);
 
   hava=Hava_alloc(argv[1],1,1,stderr,0);
   assert(Hava_isbound(hava));
   Hava_set_videocb(hava, &my_callback);
+  Hava_set_videoquality(hava, quality);
 
   // zero second tis means go forever (no set of endtime)
   //

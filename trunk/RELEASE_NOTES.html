@@ -97,7 +97,15 @@ Note: On windows, there is an additional tool called hava_channel_nowin that wil
 
 <h2>Hava Record Tool</h2>
 <xmp>
-Usage: hava_record <hava_dotform_ipaddr> <duration_sec> <tgt_mpeg>
+Usage: hava_record {hava_ipaddr} {quality} {duration_sec} {tgt_mpeg}
+
+      {hava_ipaddr} is expressed in dot form (e.g., 192.168.1.253)
+      {quality}     is expressed in hex as 0x00 or between '0x10'-'0x50'
+                    Numbers >=0x30 seem to achieve the max 8Mbps thruput
+                    Use small numbers (~0x10-0x15) if you experience video loss
+                    Use 0x00 to try to figure it out (lowish quality now)
+      {duration}    is expressed in seconds.  Zero means go forever
+      {tgt_mpeg}    is a file name that will be written
 
 NOTE: If you use '-' for the <tgt_mpg>, it will send the output to stdout
       This is recommended for piping into mplayer/mencoder
@@ -105,9 +113,9 @@ NOTE: If you use '-' for the <tgt_mpg>, it will send the output to stdout
 NOTE: If you use '-' for the ipaddr, it will try to autodetect
       This is not recommended but can be useful for testing
 </xmp>
-The first one lets you record to a file.  This file will not be indexed and will start in the middle of a frame (it will play back with mplayer but little else.  Mencoder can reindex it so that it can play in more places...
+You can record to a file or a pipe.  Note that the resulting file will NOT be indexed and will start in the middle of a frame (it will play back with mplayer but little else.)  Mencoder can be used reindex it so that it can play in more places...
 <p>
-The second one does the same thing but sends the output to stdout for piping into mplayer or mencoder.  See the example scripts and modify them for your Hava's IP address and where you have mplayer installed.
+Note the option for sending the output to stdout for piping into mplayer or mencoder.  See the example scripts and modify them for your Hava's IP address and where you have mplayer installed.
 <ul>
 <li>example_live.sh, example_live.cmd</li>
 <ul><li>
@@ -129,6 +137,26 @@ To use, you need to have a hava device on your local network and determine its
 IP address.  Then use one of the following forms to tell the hava what to do.
 
 <h1>Release Details</h1>
+<hr>
+<h2>Release beta1 -- t.b.d.</h2>
+<font color=red><h3>
+NOTE: There is new syntax for hava_record...  see above...
+</h3></font>
+<p>
+Corresponds to SVN revision XXX.  
+<p>
+The major work here was on recording quality.  Still have not figured out how to get the Hava to automatically choose good thruputs (it seems to want to stick around 2Mbps.  But did figure out how to manually select higher rates.  Added option to hava_record to reflect quality level.
+<p><b>Fixed:</b>
+<ul>
+<li> Timing code was wrong on windows (off by 10x).  This is fixed.
+</ul>
+<p><b>Known issues:</b>
+<ul>
+<li> A request has come in (SudaNim on Hava forums) to try to get the NTSC tuner to change stations too.  Thats a big unknown at the moment.
+<li> Manually setting the throttle is not my favorite idea.  We know from the Hava player stream that it is possible to get it to autoconfigure up to about 8Mbps.  Some packet magic still eludes us.
+</ul>
+<p>
+Main test environment Ubuntu 8.10 and Windows XP connecting to a Hava Wireless HD (hardware version 1003100, firmware version 270.322-32).   The Hava Wireless HD was connected to component (YPbPr) inputs and controls a Dish vip211 receiver. Others have reported limited success channel changing on other inputs and success with different set top boxes.
 <hr>
 <h2>Release alpha3 -- 9/7/2009</h2>
 <font color=red><h3>
