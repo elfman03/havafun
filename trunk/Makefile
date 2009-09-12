@@ -1,12 +1,14 @@
-all: hava_channel hava_record hava_info
+RELEASE=PREalpha4
 
-RELEASE=alpha3
+all: hava_channel hava_record hava_info
 
 release: 
 	zip dist/havafun-$(RELEASE)-win.zip *.exe *.cmd LICENSE.txt RELEASE_NOTES.html
 	tar -czvf dist/havafun-$(RELEASE)-lin.tar.gz hava_channel hava_record hava_info *.sh LICENSE.txt RELEASE_NOTES.html
 
-windows: hava_channel.exe hava_channel_nowin.exe hava_record.exe hava_info.exe
+#
+# Linux
+#
 
 hava_util.o: hava_util.c hava_util.h hava_util_internals.h
 	gcc -g -c hava_util.c
@@ -19,6 +21,12 @@ hava_record: hava_record.c hava_util.o
 
 hava_channel: hava_channel.c hava_util.o
 	gcc -g -o hava_channel hava_channel.c hava_util.o
+
+#
+# Windows
+#
+
+windows: hava_channel.exe hava_channel_nowin.exe hava_record.exe hava_info.exe
 
 hava_util.obj: hava_util.c hava_util.h hava_util_internals.h
 	cl /c /Zi hava_util.c

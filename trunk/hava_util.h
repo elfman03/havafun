@@ -75,7 +75,12 @@ typedef struct Hava {
  
   unsigned short vid_seq;    // video sequence number
   int vid_starting;          // Is video just starting
+  time_t vid_starttime;      // timeofday when I started video
   time_t vid_endtime;        // timeofday when I should stop recording
+  time_t vid_stattime;       // timeofday when I should print stats
+  unsigned long vid_minbytes;// video bytes during in last reporting interval
+  unsigned long vid_totbytes;// video bytes during session
+
   void (*vid_callback)(struct Hava *hava, const char *buf, int len);  // hava_util calls this w/pkts
 } Hava;
 
