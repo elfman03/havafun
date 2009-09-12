@@ -133,11 +133,19 @@ int Hava_isbound(Hava *hava) {
   return hava->bound;
 }
 
-extern void Hava_set_videoendtime(Hava *hava, time_t et) {
+void Hava_set_videoquality(Hava *hava, unsigned char q) {
+  hava->vid_quality=q;
+}
+
+unsigned char Hava_get_videoquality(Hava *hava) {
+  return hava->vid_quality;
+}
+
+void Hava_set_videoendtime(Hava *hava, unsigned long et) {
   hava->vid_endtime=et;
 }
 
-time_t Hava_get_videoendtime(Hava *hava) {
+unsigned long Hava_get_videoendtime(Hava *hava) {
   return hava->vid_endtime;
 }
 
@@ -181,9 +189,16 @@ unsigned long Hava_getnow() {
   FILETIME times;
   unsigned __int64 t;
   GetSystemTimeAsFileTime(&times);
+  //
+  // Okay...  so now the unit is in 100ns units since Jan 1, 1601.  
+  // How weird is that...
+  // 
   t=times.dwHighDateTime;
   t=(t<<32) | times.dwLowDateTime;
-  return t/1000000;
+  //
+  // So now we divide by 10 million (10^-7) to get seconds
+  //
+  return t/10000000;
 #else
   struct timeval tv;
   gettimeofday(&tv,0);
@@ -191,7 +206,7 @@ unsigned long Hava_getnow() {
 #endif
 }
 
-int print_stats(Hava *hava,time_t now,int interval) {
+int print_stats(Hava *hava,unsigned long now,int interval) {
   int secs;
   fprintf(hava->logfile,"Last continuation sent: 0x%02x (hava asked for 0x%02x)\n", 
                          hava->mypkt_cont[Xa],
@@ -210,7 +225,7 @@ int print_stats(Hava *hava,time_t now,int interval) {
 }
 
 int check_for_end(Hava *hava) {
-  time_t now=Hava_getnow();
+  unsigned long now=Hava_getnow();
   if(now >= hava->vid_stattime) {
     print_stats(hava,now,1);
     hava->vid_stattime=now+60;
@@ -248,6 +263,7 @@ int process_video_packet(Hava *hava, int len) {
   int tmp;
   int retval=HAVA_VIDEO_YES;
   unsigned short seq;
+  unsigned char q;
   FrameHeader *fh;
   fh=(FrameHeader*)&hava->buf[0];
   //
@@ -316,24 +332,27 @@ int process_video_packet(Hava *hava, int len) {
     hava->mypkt_cont[SEQ_OFFSET+1]=(seq & 0x0ff);
     hava->mypkt_cont[SEQ_OFFSET]=((seq>>8) & 0x0ff);
 //
+//      q=fh->next_time_desired;
+//
 // There is something we are missing here in the protocol.  When we
 // use the byte that Hava asks for, it never really grows above about 0xa
 // When using the real player from Hava, it grows up to 0x20-0x30.
 // Presumably there are some additional packets needed to tell Hava
 // to get more aggressive...
 //
-//    hava->mypkt_cont[XM]=fh->next_time_desired-1;
-//    hava->mypkt_cont[Xa]=fh->next_time_desired;
-//    hava->mypkt_cont[Xb]=fh->next_time_desired;
-//    
 // With this firmware, if we just say use a bunch of packets(0x50), I'm able to
 // see 8Mbps coming from Hava (for high def content and about 6Mbps for 
 // standard def content.  We will need to watch this trick on future firmwares
 // because it is probably not right...
 //
-    hava->mypkt_cont[XM]=0x04f;
-    hava->mypkt_cont[Xa]=0x050;
-    hava->mypkt_cont[Xb]=0x050;
+    if(hava->vid_quality) { 
+      q=hava->vid_quality;
+    } else {
+      q=fh->next_time_desired;
+    }
+    hava->mypkt_cont[XM]=q-1;
+    hava->mypkt_cont[Xa]=q;
+    hava->mypkt_cont[Xb]=q;
     Hava_sendcmd(hava,HAVA_CONT_VIDEO,0,0); 
 
 #ifdef DEBUG_MODE_MONITOR_BANDWIDTH 

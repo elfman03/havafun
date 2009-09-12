@@ -62,24 +62,24 @@
 #endif
 
 typedef struct Hava {
-  int sock;                  // the socket
-  int bound;                 // is the socket bound?
-  struct sockaddr_in si;     // Sockaddr with target Hava IP filled in
-  FILE *logfile;             // File to log messages to (stderr by default)
+  int                sock,      // the socket
+                     bound;     // is the socket bound?
+  struct sockaddr_in si;        // Sockaddr with target Hava IP filled in
+  FILE           *logfile;      // File to log messages to (stderr by default)
 
-  unsigned char *mypkt_cont; // My moddable copy of a continuation packet
-  unsigned char *mypkt_butt; // My moddable copy of a button packet
-  unsigned char *mypkt_chan; // My moddable copy of a channel packet
-
-  unsigned char *buf;        // the input buffer from the hava
+  unsigned char  *buf,          // the input buffer from the hava
+                 *mypkt_cont,   // My moddable copy of a continuation packet
+                 *mypkt_butt,   // My moddable copy of a button packet
+                 *mypkt_chan;   // My moddable copy of a channel packet
  
-  unsigned short vid_seq;    // video sequence number
-  int vid_starting;          // Is video just starting
-  time_t vid_starttime;      // timeofday when I started video
-  time_t vid_endtime;        // timeofday when I should stop recording
-  time_t vid_stattime;       // timeofday when I should print stats
-  unsigned long vid_minbytes;// video bytes during in last reporting interval
-  unsigned long vid_totbytes;// video bytes during session
+  unsigned long  vid_starttime, // timeofday when I started video
+                 vid_endtime,   // timeofday when I should stop recording
+                 vid_stattime,  // timeofday when I should print stats
+                 vid_minbytes,  // video bytes during in last reporting interval
+                 vid_totbytes;  // video bytes during session
+  int            vid_starting;  // Is video just starting?
+  unsigned short vid_seq;       // video sequence number
+  unsigned char  vid_quality;   // Video quality (0x00 or 0x10-0x50)
 
   void (*vid_callback)(struct Hava *hava, const char *buf, int len);  // hava_util calls this w/pkts
 } Hava;
@@ -101,14 +101,27 @@ extern Hava *Hava_alloc(const char *havaip, int binding, int blocking,
 extern int Hava_isbound(Hava *hava);
 
 //
+// Set the requested video quality (0x00 or value between 0x10-0x50).  
+// Effectively, the number should be between 0x10-0x30.  At about 0x30
+// the max rate of about 8Mbps should be achieved.  Back off if get lossy video
+// 0x00 will use the numbers that Hava requests 
+//
+extern void Hava_set_videoquality(Hava *hava, unsigned char q);
+
+//
+// get the current user requested video quality
+//
+extern unsigned char Hava_get_videoquality(Hava *hava);
+
+//
 // Define timeofday when I should stop recording
 //
-extern void Hava_set_videoendtime(Hava *hava, time_t et);
+extern void Hava_set_videoendtime(Hava *hava, unsigned long et);
 
 //
 // get timeofday when I should stop recording
 //
-extern time_t Hava_get_videoendtime(Hava *hava);
+extern unsigned long Hava_get_videoendtime(Hava *hava);
 
 //
 // Define function pointer to app function that will eat video data (or null)
