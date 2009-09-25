@@ -101,7 +101,7 @@ const unsigned char
                                 0x00,0x00,0x00,0xb6,0x00,0x02,0x00,0x00,
                                 0x00,0x0f };
                             
-#define LEARNED_BUTTON_OFFSET   41
+#define BUTTON_LEARNED_OFFSET   41
 
 // Basic form of a start packet
 const unsigned char start_pkt[8]={ 0x03,0x0c,0xfe,0xed,0x00,0x00,0x00,0x02, };

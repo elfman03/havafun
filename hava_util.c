@@ -517,7 +517,7 @@ void Hava_sendcmd(Hava *hava, int cmd, unsigned short eA, unsigned short eB) {
          buf=hava->mypkt_butt;
          len=sizeof(button_push);
        } else {
-         hava->mypkt_buttl[BUTTON_OFFSET]=(unsigned char)eA;
+         hava->mypkt_buttl[BUTTON_LEARNED_OFFSET]=(unsigned char)eA;
          buf=hava->mypkt_buttl;
          len=sizeof(button_push_learned);
        }
