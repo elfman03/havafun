@@ -52,15 +52,18 @@ Usage(FILE *logfile) {
   fprintf(logfile,"                 Example: \"Component\" or 3 for Component input\n");
   fprintf(logfile,"       {remote_code} = The remote control code configured in Hava wizard\n");
   fprintf(logfile,"                 Example: \"S0775\" for Dish VIP211\n");
+  fprintf(logfile,"                 Note: Use \"Learned\" if you learned your IR codes\n");
   fprintf(logfile,"       [nobind] = Optional to tell hava_channel to not even try to bind to port\n");
   fprintf(logfile,"       {command}+ = One or more commands : a CHANNEL, a BUTTON or a WAIT\n");
   fprintf(logfile,"                        A CHANNEL is a number. (1-65535)\n");
-  fprintf(logfile,"                        A BUTTON is a name or 0xXX code from showbuttons.\n");
+  fprintf(logfile,"                        A BUTTON is a name or 0xXX code from show[learned]buttons.\n");
   fprintf(logfile,"                        A WAIT is \"wX\". X is a number of seconds (1-9) to sleep\n");
   fprintf(logfile,"                 Example: \"PowerOn\" \"w3\" \"122\" \"w3\" \"Enter\"\n");
   fprintf(logfile,"\n   Full example: hava_channel 192.168.1.253 Component S0775 PowerOn w3 122\n\n");
   fprintf(logfile,"       hava_channel showbuttons\n");
   fprintf(logfile,"                 Shows list of available buttons\n");
+  fprintf(logfile,"       hava_channel showlearnedbuttons\n");
+  fprintf(logfile,"                 Shows list of available learned buttons\n");
   fprintf(logfile,"       hava_channel showinputs\n");
   fprintf(logfile,"                 Shows list of available inputs\n\n");
   fprintf(logfile,"NOTE: If you use '-' for the ipaddr, it will try to autodetect\n");
@@ -73,12 +76,20 @@ Usage(FILE *logfile) {
   exit(1);
 }
 
-void showbuttons(FILE *logfile) {
+void showbuttons(FILE *logfile,int learned) {
   int i;
   const char *p;
-  fprintf(logfile,"Available buttons are:\n");
+  if(!learned) {
+    fprintf(logfile,"Available buttons are:\n");
+  } else {
+    fprintf(logfile,"Available learned buttons are:\n");
+  }
   for(i=0;i<256;i++) {
-    p=Hava_button_ntoa(i);
+    if(!learned) {
+      p=Hava_button_ntoa(i);
+    } else {
+      p=Hava_button_learned_ntoa(i);
+    }
     if(p) { 
       fprintf(logfile,"  0x%02x : %s\n",i,p);
     }
@@ -163,7 +174,8 @@ main(int argc, char *argv[])
   build_argc_argv(args);
 #endif
 
-  if(argc==2 && !strcmp(argv[1],"showbuttons")) { showbuttons(logfile); }
+  if(argc==2 && !strcmp(argv[1],"showbuttons")) { showbuttons(logfile,0); }
+  if(argc==2 && !strcmp(argv[1],"showlearnedbuttons")) { showbuttons(logfile,1); }
   if(argc==2 && !strcmp(argv[1],"showinputs")) { showinputs(logfile); }
 
   Hava_startup(logfile);
@@ -188,10 +200,13 @@ main(int argc, char *argv[])
 
   // check for remote code
   //
-  remote=Hava_remote_aton(argv[3]);
-  if(remote==0) {
-    fprintf(logfile,"Unknown remote %s\n\n",argv[3]);
-    Usage(logfile);
+  remote=0;
+  if(strcmp(argv[3],"Learned")) {
+    remote=Hava_remote_aton(argv[3]);
+    if(remote==0) {
+      fprintf(logfile,"Unknown remote %s\n\n",argv[3]);
+      Usage(logfile);
+    }
   }
 
   hava=Hava_alloc(argv[1],binding,0,logfile,0);
@@ -212,7 +227,11 @@ main(int argc, char *argv[])
     if(sleepy) {
       butt=0;
     } else {
-      butt=Hava_button_aton(argv[aindex]);
+      if(remote) {
+        butt=Hava_button_aton(argv[aindex]);
+      } else {
+        butt=Hava_button_learned_aton(argv[aindex]);
+      }
     }
 
     if(sleepy==0 && butt==0) {   
@@ -239,7 +258,8 @@ main(int argc, char *argv[])
         char *p=Hava_remote_ntoa(remote);
         if(!p) { Usage(logfile); }
         fprintf(logfile,"Sending button=%s(0x%02x) request to %s(%s/0x%04x)\n",
-                        Hava_button_ntoa(butt),butt,argv[1],p,remote);
+                   remote?Hava_button_ntoa(butt):Hava_button_learned_ntoa(butt),
+                   butt,argv[1],p,remote);
         free(p);
         Hava_sendcmd(hava, HAVA_BUTTON, butt, remote); 
       } else {
