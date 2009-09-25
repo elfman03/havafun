@@ -79,6 +79,13 @@ Hava *Hava_alloc(const char *havaip, int binding, int blocking,
   assert(h->mypkt_butt);
   for(i=0;i<sizeof(button_push);i++) { h->mypkt_butt[i]=button_push[i]; }
 
+  // allocate my LEARNED button packet
+  h->mypkt_buttl=malloc(sizeof(button_push_learned));
+  assert(h->mypkt_buttl);
+  for(i=0;i<sizeof(button_push_learned);i++) { 
+    h->mypkt_buttl[i]=button_push_learned[i]; 
+  }
+
   // allocate my channel packet
   h->mypkt_chan=malloc(sizeof(channel_set));
   assert(h->mypkt_chan);
@@ -206,7 +213,7 @@ unsigned long Hava_getnow() {
 #endif
 }
 
-int print_stats(Hava *hava,unsigned long now,int interval) {
+void print_stats(Hava *hava,unsigned long now,int interval) {
   int secs;
   fprintf(hava->logfile,"Last continuation sent: 0x%02x (hava asked for 0x%02x)\n", 
                          hava->mypkt_cont[Xa],
@@ -502,11 +509,18 @@ void Hava_sendcmd(Hava *hava, int cmd, unsigned short eA, unsigned short eB) {
        //
        // Update with button number and remote control codeset
        //
-       hava->mypkt_butt[BUTTON_REMOTE_OFFSET_HI]=(unsigned char)(eB>>8);
-       hava->mypkt_butt[BUTTON_REMOTE_OFFSET_LO]=(unsigned char)(eB&0x0ff);
-       hava->mypkt_butt[BUTTON_OFFSET]=(unsigned char)eA;
-       buf=hava->mypkt_butt;
-       len=sizeof(button_push);
+       // eB is the remote code (0 for learned mode)
+       if(eB) {
+         hava->mypkt_butt[BUTTON_REMOTE_OFFSET_HI]=(unsigned char)(eB>>8);
+         hava->mypkt_butt[BUTTON_REMOTE_OFFSET_LO]=(unsigned char)(eB&0x0ff);
+         hava->mypkt_butt[BUTTON_OFFSET]=(unsigned char)eA;
+         buf=hava->mypkt_butt;
+         len=sizeof(button_push);
+       } else {
+         hava->mypkt_buttl[BUTTON_OFFSET]=(unsigned char)eA;
+         buf=hava->mypkt_buttl;
+         len=sizeof(button_push_learned);
+       }
        break;
     default:
       assert(0);
@@ -533,6 +547,7 @@ unsigned short Hava_remote_aton(const char *name) {
 char *Hava_remote_ntoa(unsigned short remote) {
   int hi,
       lo;
+
   char ch=0;
   char *p;
   hi=remote & 0x0f000 ;
@@ -541,10 +556,14 @@ char *Hava_remote_ntoa(unsigned short remote) {
   if(hi==0x03000) { ch='S'; }
   p=malloc(16);
   assert(p);
-  if(!ch) { 
-    sprintf(p,"<UNSUPPORTED>"); 
+  if(!remote) { 
+    sprintf(p,"Learned"); 
   } else {
-    sprintf(p,"%c%04d",ch,lo);
+    if(!ch) { 
+      sprintf(p,"<UNSUPPORTED>"); 
+    } else {
+      sprintf(p,"%c%04d",ch,lo);
+    }
   }
   return p;
 }
@@ -585,6 +604,27 @@ unsigned char Hava_button_aton(const char *name) {
 
 const char *Hava_button_ntoa(unsigned char button) {
   return Hava_buttons[button];
+}
+
+unsigned char Hava_button_learned_aton(const char *name) {
+  int i;
+  assert(name);
+  for(i=0;i<256;i++) {
+    if(Hava_buttons_learned[i] && !strcmp(name,Hava_buttons_learned[i])) 
+    { 
+      return i; 
+    }
+  }
+  //Check for hex button request
+  if (name[0]=='0' && name[1]=='x')
+  {
+    return (unsigned char)strtol(name,(char **)NULL,16);
+  }
+  return 0;
+}
+
+const char *Hava_button_learned_ntoa(unsigned char button) {
+  return Hava_buttons_learned[button];
 }
 
 void make_nonblocking(Hava *hava) {

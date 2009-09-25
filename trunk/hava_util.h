@@ -70,6 +70,7 @@ typedef struct Hava {
   unsigned char  *buf,          // the input buffer from the hava
                  *mypkt_cont,   // My moddable copy of a continuation packet
                  *mypkt_butt,   // My moddable copy of a button packet
+                 *mypkt_buttl,  // My moddable copy of a LEARNED button packet
                  *mypkt_chan;   // My moddable copy of a channel packet
  
   unsigned long  vid_starttime, // timeofday when I started video
@@ -160,6 +161,16 @@ extern void Hava_close(Hava *hava);
 //
 extern int Hava_loop(Hava *hava, unsigned short magic, int verbose);
 
+// Convert a LEARNED button name to a LEARNED button number
+// Zero equals not found
+//
+unsigned char Hava_button_learned_aton(const char *name);
+
+// Use this to get the name of a LEARNED button number
+// null string equals no match
+//
+const char *Hava_button_learned_ntoa(unsigned char bno);
+
 // Convert a button name to a button number
 // Zero equals not found
 //
@@ -194,11 +205,11 @@ const char *Hava_input_ntoa(unsigned char ino);
 
 // Hava commands -- use with Hava_sendcmd()
 //
-#define HAVA_INIT        0
-#define HAVA_START_VIDEO 1
-#define HAVA_CONT_VIDEO  2
-#define HAVA_CHANNEL     3
-#define HAVA_BUTTON      4
+#define HAVA_INIT           0
+#define HAVA_START_VIDEO    1
+#define HAVA_CONT_VIDEO     2
+#define HAVA_CHANNEL        3
+#define HAVA_BUTTON         4
 
 //
 // Send a command! (INIT, START_VIDEO, CONT_VIDEO, CHANNEL, BUTTON)
@@ -209,7 +220,10 @@ const char *Hava_input_ntoa(unsigned char ino);
 //   -- eB is input number (0-3)
 // BUTTON 
 //   -- eA is button id (e.g., from Hava_button_aton())
-//   -- eB is input number (0-3)
+//   -- eB is remote control code (e.g., S0775)
+//
+// BUTTON_LEARNED
+//   -- eA is button id (e.g., from Hava_button_learned_aton())
 //
 extern void Hava_sendcmd(Hava *hava, int cmd, 
                                      unsigned short eA, unsigned short Eb);
