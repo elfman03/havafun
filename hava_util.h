@@ -78,11 +78,16 @@ typedef struct Hava {
                  vid_stattime,  // timeofday when I should print stats
                  vid_minbytes,  // video bytes during in last reporting interval
                  vid_totbytes;  // video bytes during session
-  int            vid_starting;  // Is video just starting?
+  int            vid_header,    // User want video header
+                 vid_starting,  // Is video just starting?
+                 vid_ooo;       // Fixup out of order video
+  void           *bonus_val;    // A bonus value that the client can set/get
   unsigned short vid_seq;       // video sequence number
   unsigned char  vid_quality;   // Video quality (0x00 or 0x10-0x50)
 
-  void (*vid_callback)(struct Hava *hava, const char *buf, int len);  // hava_util calls this w/pkts
+  // hava_util calls this w/pkts
+  void (*vid_callback)(struct Hava *hava, int keyframe, unsigned long now,
+                       const unsigned char *buf, int len);  
 } Hava;
 
 // input  --  Target Hava device IP or "-"
@@ -97,9 +102,24 @@ extern Hava *Hava_alloc(const char *havaip, int binding, int blocking,
                         FILE *logfile, int verbose);
 
 //
+// use Hava_set_bonus() to set bonus value
+//
+extern void Hava_set_bonus(Hava *hava, void *val);
+
+//
+// use Hava_get_bonus() to get bonus value
+//
+extern void *Hava_get_bonus(Hava *hava);
+
+//
 // use Hava_isbound() to see if it really bound to the Hava local port
 //
 extern int Hava_isbound(Hava *hava);
+
+//
+// Set to have an MPEG header at start of videooutput
+//
+void Hava_set_videoheader(Hava *hava, int val);
 
 //
 // Set the requested video quality (0x00 or value between 0x10-0x50).  
@@ -128,7 +148,9 @@ extern unsigned long Hava_get_videoendtime(Hava *hava);
 // Define function pointer to app function that will eat video data (or null)
 //
 extern void Hava_set_videocb(Hava *hava, 
-                             void (*vcb)(Hava *hava, const char *buf,int len));
+                             void (*vcb)(Hava *hava, 
+                                         int keyframe, unsigned long now,
+                                         const unsigned char *buf,int len));
 
 //
 // Returns the current time in seconds (for computing a record endtime)
