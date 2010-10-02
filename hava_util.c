@@ -39,9 +39,11 @@
  *
  */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/time.h>
 #include <assert.h>
 
 //#define DEBUG_MODE_MONITOR_BANDWIDTH 1
@@ -53,6 +55,7 @@
 
 void make_exclusive(Hava *);
 void make_nonblocking(Hava *);
+void print_the_buffer(Hava *h,const unsigned char *buf,int len);
 void print_the_packet(Hava *h,int len,struct in_addr addr);
 
 Hava *Hava_alloc(const char *havaip, int binding, int blocking,
@@ -70,28 +73,28 @@ Hava *Hava_alloc(const char *havaip, int binding, int blocking,
   h->logfile=logfile;
 
   // allocate my continuation packet
-  h->mypkt_cont=malloc(sizeof(continue_pkt));
+  h->mypkt_cont=(unsigned char*)malloc(sizeof(continue_pkt));
   assert(h->mypkt_cont);
   for(i=0;i<sizeof(continue_pkt);i++) { h->mypkt_cont[i]=continue_pkt[i]; }
 
   // allocate my button packet
-  h->mypkt_butt=malloc(sizeof(button_push));
+  h->mypkt_butt=(unsigned char*)malloc(sizeof(button_push));
   assert(h->mypkt_butt);
   for(i=0;i<sizeof(button_push);i++) { h->mypkt_butt[i]=button_push[i]; }
 
   // allocate my LEARNED button packet
-  h->mypkt_buttl=malloc(sizeof(button_push_learned));
+  h->mypkt_buttl=(unsigned char*)malloc(sizeof(button_push_learned));
   assert(h->mypkt_buttl);
   for(i=0;i<sizeof(button_push_learned);i++) { 
     h->mypkt_buttl[i]=button_push_learned[i]; 
   }
 
   // allocate my channel packet
-  h->mypkt_chan=malloc(sizeof(channel_set));
+  h->mypkt_chan=(unsigned char*)malloc(sizeof(channel_set));
   assert(h->mypkt_chan);
   for(i=0;i<sizeof(channel_set);i++) { h->mypkt_chan[i]=channel_set[i]; }
 
-  h->buf=malloc(HAVA_BUFFSIZE);
+  h->buf=(unsigned char*)malloc(HAVA_BUFFSIZE);
   assert(h->buf);
 
   h->sock=socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -120,7 +123,7 @@ Hava *Hava_alloc(const char *havaip, int binding, int blocking,
       h->bound=1;
       fprintf(h->logfile,"Bind successful!  recv() possible...\n");
     } else {
-      fprintf(h->logfile,"Socket already bound! no recv() possible so no ACK checking...\n");
+      fprintf(h->logfile,"bind error %d! no recv() possible so no ACK checking...\n",errno);
     }
   }
   if(!blocking) {
@@ -140,6 +143,14 @@ int Hava_isbound(Hava *hava) {
   return hava->bound;
 }
 
+void Hava_set_bonus(Hava *hava, void *val) {
+  hava->bonus_val=val;
+}
+
+void *Hava_get_bonus(Hava *hava) {
+  return hava->bonus_val;
+}
+
 void Hava_set_videoquality(Hava *hava, unsigned char q) {
   hava->vid_quality=q;
 }
@@ -156,10 +167,14 @@ unsigned long Hava_get_videoendtime(Hava *hava) {
   return hava->vid_endtime;
 }
 
+void Hava_set_videoheader(Hava *hava, int val) {
+  hava->vid_header=val;
+}
+
 void Hava_set_videocb(Hava *hava, 
-                      void (*vcb)(Hava *hava, const char *buf, int len)) {
+                      void (*vcb)(Hava *hava, int keyframe, unsigned long now,
+                                  const unsigned char *buf, int len)) {
   hava->vid_callback=vcb;
-  hava->vid_starting=1;
 }
 
 void Hava_close(Hava *hava) {
@@ -231,8 +246,7 @@ void print_stats(Hava *hava,unsigned long now,int interval) {
   fprintf(hava->logfile,  "---------------------------------------------\n");
 }
 
-int check_for_end(Hava *hava) {
-  unsigned long now=Hava_getnow();
+int check_for_end(Hava *hava, unsigned long now) {
   if(now >= hava->vid_stattime) {
     print_stats(hava,now,1);
     hava->vid_stattime=now+60;
@@ -267,8 +281,10 @@ int check_for_end(Hava *hava) {
 // return HAVA_VIDEO_END  if it is time to exit
 //
 int process_video_packet(Hava *hava, int len) {
+  int keyframe;
   int tmp;
   int retval=HAVA_VIDEO_YES;
+  unsigned long now;
   unsigned short seq;
   unsigned char q;
   FrameHeader *fh;
@@ -306,10 +322,11 @@ int process_video_packet(Hava *hava, int len) {
   // First time thru, do something special
   //
   if(hava->vid_starting) {
-    if(hava->vid_callback) { 
-      hava->vid_callback(hava,mpeg_hdr,sizeof(mpeg_hdr)); 
+    if(hava->vid_callback && hava->vid_header) { 
+      hava->vid_callback(hava,0,0,mpeg_hdr,sizeof(mpeg_hdr)); 
     }
     hava->vid_seq=seq;
+    hava->vid_ooo=1;        // first time do some OOO detection
     hava->vid_starting=0;
     hava->vid_starttime=Hava_getnow();
     hava->vid_stattime=hava->vid_starttime+60;
@@ -325,6 +342,7 @@ int process_video_packet(Hava *hava, int len) {
     //
     fprintf(hava->logfile,"Out of order video packet!!! 0x%04x not 0x%04x\n",
            seq,hava->vid_seq);
+    hava->vid_ooo=1;
   }
 
 #ifdef DEBUG_MODE_VERBOSE
@@ -375,10 +393,37 @@ int process_video_packet(Hava *hava, int len) {
                hava->mypkt_cont[SEQ_OFFSET],
                hava->mypkt_cont[SEQ_OFFSET+1]);
 #endif
-    if(check_for_end(hava)) { retval=HAVA_VIDEO_END; }
+    now=Hava_getnow();
+    if(check_for_end(hava,now)) { retval=HAVA_VIDEO_END; }
   }
   if(hava->vid_callback) { 
-    hava->vid_callback(hava,&fh->payload,len-16); 
+    if(hava->vid_ooo==1) {
+      if( (&fh->payload)[00]==0x00 && (&fh->payload)[01]==0x00 && 
+          (&fh->payload)[02]==0x01 && (&fh->payload)[03]==0xba &&
+          (&fh->payload)[14]==0x00 && (&fh->payload)[15]==0x00 && 
+          (&fh->payload)[16]==0x01) 
+      {
+        hava->vid_ooo=0;
+      }
+    }
+    keyframe=0;
+    // Cheap frame detection at this point because it is at the front of a packet
+    // 000001ba = mpeg pack header
+    // 000001e0 = mpeg video stream
+    // 000001b3 = mpeg video sequence header
+    //
+    if( (&fh->payload)[36]==0x00 && (&fh->payload)[37]==0x00 && 
+        (&fh->payload)[38]==0x01 && (&fh->payload)[39]==0xb3 &&
+        (&fh->payload)[14]==0x00 && (&fh->payload)[15]==0x00 && 
+        (&fh->payload)[16]==0x01 && (&fh->payload)[17]==0xe0 &&
+        (&fh->payload)[00]==0x00 && (&fh->payload)[01]==0x00 && 
+        (&fh->payload)[02]==0x01 && (&fh->payload)[03]==0xba)
+    {
+      keyframe=1;
+    }
+    if(hava->vid_ooo==0) {
+      hava->vid_callback(hava,keyframe,now-hava->vid_starttime,&fh->payload,len-16); 
+    }
   }
   return retval;
 }
@@ -399,6 +444,7 @@ int Hava_loop(Hava *hava, unsigned short magic, int verbose) {
 #endif
 
   if(magic==HAVA_MAGIC_INFO) { sleeptime=500; }
+  if(magic==HAVA_MAGIC_RECORD) { hava->vid_starting=1; }
 
   ct=0;
   for(done=0;!done;) {
@@ -411,7 +457,7 @@ int Hava_loop(Hava *hava, unsigned short magic, int verbose) {
     //
     for(pkt=0;pkt<HAVA_MAXTRIES;) {
       len=recvfrom(hava->sock,hava->buf, HAVA_BUFFSIZE, 
-                   0,(struct sockaddr*)&so,&tmp);
+                   0,(struct sockaddr*)&so,(socklen_t*)&tmp);
       assert(tmp==sizeof(so));
       if(len!=-1) {               // yay! got a packet
         pkt=HAVA_MAXTRIES;
@@ -479,7 +525,7 @@ int Hava_loop(Hava *hava, unsigned short magic, int verbose) {
 
 void Hava_sendcmd(Hava *hava, int cmd, unsigned short eA, unsigned short eB) {
   int tmp, len;
-  const char *buf;
+  const unsigned char *buf;
   switch (cmd) {
     case HAVA_CONT_VIDEO:
        buf=hava->mypkt_cont;     
@@ -527,6 +573,7 @@ void Hava_sendcmd(Hava *hava, int cmd, unsigned short eA, unsigned short eB) {
   }
 #ifdef DEBUG_MODE 
   fprintf(hava->logfile,"send %d bytes\n",len); 
+  print_the_buffer(hava,buf,len);
 #endif
   tmp=sendto(hava->sock,buf,len,0,
              (struct sockaddr*)&hava->si, sizeof(hava->si)); 
@@ -554,7 +601,7 @@ char *Hava_remote_ntoa(unsigned short remote) {
   lo=remote & 0x00fff ;
   if(hi==0x01000) { ch='C'; }
   if(hi==0x03000) { ch='S'; }
-  p=malloc(16);
+  p=(char*)malloc(16);
   assert(p);
   if(!remote) { 
     sprintf(p,"Learned"); 
@@ -641,8 +688,8 @@ void make_nonblocking(Hava *hava) {
 }
 
 void make_exclusive(Hava *hava) {
-  int r,val;
 #ifdef VSTUDIO
+  int r,val;
   val=1;
   r=setsockopt(hava->sock,SOL_SOCKET,SO_EXCLUSIVEADDRUSE,
                             (char*)&val,sizeof(val));
@@ -650,15 +697,18 @@ void make_exclusive(Hava *hava) {
 #endif
 }
 
-void print_the_packet(Hava *hava,int len,struct in_addr addr) {
+void print_the_buffer(Hava *hava,const unsigned char *buf,int len) {
   int i;
-  fprintf(hava->logfile,"len=%d from %s\n",len,inet_ntoa(addr));
   for(i=0;i<len;) {
     if(i && !(i%16)) { fprintf(hava->logfile,"\n"); }
     if(!(i%16)) { fprintf(hava->logfile,"\t0x%04x: ",i); }
     if(!(i%2)) { fprintf(hava->logfile," "); }
-    fprintf(hava->logfile,"%02x",hava->buf[i]);
+    fprintf(hava->logfile,"%02x",buf[i]);
     if(++i==len) { fprintf(hava->logfile,"\n"); }
   }
 }
 
+void print_the_packet(Hava *hava,int len,struct in_addr addr) {
+  fprintf(hava->logfile,"len=%d from %s\n",len,inet_ntoa(addr));
+  print_the_buffer(hava,hava->buf,len);
+}
