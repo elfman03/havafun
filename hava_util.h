@@ -86,7 +86,7 @@ typedef struct Hava {
   unsigned char  vid_quality;   // Video quality (0x00 or 0x10-0x50)
 
   // hava_util calls this w/pkts
-  void (*vid_callback)(struct Hava *hava, int keyframe, unsigned long now,
+  void (*vid_callback)(struct Hava *hava, unsigned long now,
                        const unsigned char *buf, int len);  
 } Hava;
 
@@ -148,8 +148,7 @@ extern unsigned long Hava_get_videoendtime(Hava *hava);
 // Define function pointer to app function that will eat video data (or null)
 //
 extern void Hava_set_videocb(Hava *hava, 
-                             void (*vcb)(Hava *hava, 
-                                         int keyframe, unsigned long now,
+                             void (*vcb)(Hava *hava, unsigned long now,
                                          const unsigned char *buf,int len));
 
 //
