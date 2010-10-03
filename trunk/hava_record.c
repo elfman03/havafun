@@ -47,33 +47,13 @@
 
 FILE *gof;
 
-int started=0;
-void my_callback(Hava *hava,int keyframe,unsigned long n,const unsigned char *buf,int len) {
+void my_callback(Hava *hava,unsigned long now,const unsigned char *buf,int len) {
   int b;
-  time_t t,now;
-// 000001ba  000001e0  000001b3
-if(!started) {
-     b=1;
-     if( buf[00]==0x00 && buf[01]==0x00 && buf[02]==0x01 && buf[03]==0xba &&
-         buf[14]==0x00 && buf[15]==0x00 && buf[16]==0x01 && buf[17]==0xe0 &&
-         buf[36]==0x00 && buf[37]==0x00 && buf[38]==0x01 && buf[39]==0xb3) {
-             started=1;
-     }
-}
-if(started) {
   b=fwrite(buf,len,1,gof);
-}
-     
-fprintf(stderr,"%02x%02x%02x%02x  ",buf[00],buf[01],buf[02],buf[03]);
-fprintf(stderr,"%02x%02x%02x%02x  ",buf[14],buf[15],buf[16],buf[17]);
-fprintf(stderr,"%02x%02x%02x%02x\n",buf[36],buf[37],buf[38],buf[39]);
+
   if(b!=1) {
-    t=Hava_get_videoendtime(hava);
-    now=Hava_getnow();
-    if(!t || t>now) {
-      fprintf(stderr,"hava_record write failed... finalizing capture shortly...\n");
-      Hava_set_videoendtime(hava,now);
-    }
+    fprintf(stderr,"hava_record write failed... finalizing capture shortly...\n");
+    Hava_set_videoendtime(hava,now);
   }
   return;
 }

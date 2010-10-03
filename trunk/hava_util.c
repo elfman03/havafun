@@ -172,7 +172,7 @@ void Hava_set_videoheader(Hava *hava, int val) {
 }
 
 void Hava_set_videocb(Hava *hava, 
-                      void (*vcb)(Hava *hava, int keyframe, unsigned long now,
+                      void (*vcb)(Hava *hava, unsigned long now,
                                   const unsigned char *buf, int len)) {
   hava->vid_callback=vcb;
 }
@@ -281,7 +281,6 @@ int check_for_end(Hava *hava, unsigned long now) {
 // return HAVA_VIDEO_END  if it is time to exit
 //
 int process_video_packet(Hava *hava, int len) {
-  int keyframe;
   int tmp;
   int retval=HAVA_VIDEO_YES;
   unsigned long now;
@@ -323,7 +322,7 @@ int process_video_packet(Hava *hava, int len) {
   //
   if(hava->vid_starting) {
     if(hava->vid_callback && hava->vid_header) { 
-      hava->vid_callback(hava,0,0,mpeg_hdr,sizeof(mpeg_hdr)); 
+      hava->vid_callback(hava,0,mpeg_hdr,sizeof(mpeg_hdr)); 
     }
     hava->vid_seq=seq;
     hava->vid_ooo=1;        // first time do some OOO detection
@@ -406,23 +405,8 @@ int process_video_packet(Hava *hava, int len) {
         hava->vid_ooo=0;
       }
     }
-    keyframe=0;
-    // Cheap frame detection at this point because it is at the front of a packet
-    // 000001ba = mpeg pack header
-    // 000001e0 = mpeg video stream
-    // 000001b3 = mpeg video sequence header
-    //
-    if( (&fh->payload)[36]==0x00 && (&fh->payload)[37]==0x00 && 
-        (&fh->payload)[38]==0x01 && (&fh->payload)[39]==0xb3 &&
-        (&fh->payload)[14]==0x00 && (&fh->payload)[15]==0x00 && 
-        (&fh->payload)[16]==0x01 && (&fh->payload)[17]==0xe0 &&
-        (&fh->payload)[00]==0x00 && (&fh->payload)[01]==0x00 && 
-        (&fh->payload)[02]==0x01 && (&fh->payload)[03]==0xba)
-    {
-      keyframe=1;
-    }
     if(hava->vid_ooo==0) {
-      hava->vid_callback(hava,keyframe,now-hava->vid_starttime,&fh->payload,len-16); 
+      hava->vid_callback(hava,now-hava->vid_starttime,&fh->payload,len-16); 
     }
   }
   return retval;
