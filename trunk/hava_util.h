@@ -73,9 +73,9 @@ typedef struct Hava {
                  *mypkt_buttl,  // My moddable copy of a LEARNED button packet
                  *mypkt_chan;   // My moddable copy of a channel packet
  
-  unsigned long  vid_starttime, // timeofday when I started video
-                 vid_endtime,   // timeofday when I should stop recording
-                 vid_stattime,  // timeofday when I should print stats
+  unsigned long  vid_starttime, // millisecond when I started video
+                 vid_endtime,   // millisecond when I should stop recording
+                 vid_stattime,  // millisecond when I should print stats
                  vid_minbytes,  // video bytes during in last reporting interval
                  vid_totbytes;  // video bytes during session
   int            vid_header,    // User want video header
@@ -135,12 +135,12 @@ extern void Hava_set_videoquality(Hava *hava, unsigned char q);
 extern unsigned char Hava_get_videoquality(Hava *hava);
 
 //
-// Define timeofday when I should stop recording
+// Define millisecond when I should stop recording
 //
 extern void Hava_set_videoendtime(Hava *hava, unsigned long et);
 
 //
-// get timeofday when I should stop recording
+// get millisecond when I should stop recording
 //
 extern unsigned long Hava_get_videoendtime(Hava *hava);
 
@@ -152,7 +152,7 @@ extern void Hava_set_videocb(Hava *hava,
                                          const unsigned char *buf,int len));
 
 //
-// Returns the current time in seconds (for computing a record endtime)
+// Returns the current time in milliseconds (for computing a record endtime)
 //
 extern unsigned long Hava_getnow();
 
