@@ -219,12 +219,13 @@ unsigned long Hava_getnow() {
   t=(t<<32) | times.dwLowDateTime;
   //
   // So now we divide by 10 million (10^-7) to get seconds
+  //                             or (10^-4) to get milliseconds
   //
-  return t/10000000;
+  return t/10000;                // sec: t/10000000;
 #else
   struct timeval tv;
   gettimeofday(&tv,0);
-  return (unsigned long)tv.tv_sec;
+  return (unsigned long)tv.tv_sec*1000+tv.tv_usec/1000000;
 #endif
 }
 
@@ -239,7 +240,7 @@ void print_stats(Hava *hava,unsigned long now,int interval) {
                            hava->vid_minbytes,
                           (hava->vid_minbytes*8.0)/(1024*1024*60));
   }
-  secs=now-hava->vid_starttime;
+  secs=(now-hava->vid_starttime)/1000;
   fprintf(hava->logfile,  "Total video bandwidth    -- (%ld bytes)/(%d sec) -- %0.2lf Mbps\n",
                         hava->vid_totbytes, secs,
                         (hava->vid_totbytes*8.0)/(1024*1024*secs));
@@ -249,7 +250,7 @@ void print_stats(Hava *hava,unsigned long now,int interval) {
 int check_for_end(Hava *hava, unsigned long now) {
   if(now >= hava->vid_stattime) {
     print_stats(hava,now,1);
-    hava->vid_stattime=now+60;
+    hava->vid_stattime=now+60000;
     hava->vid_minbytes=0;
   }
   //
@@ -321,16 +322,16 @@ int process_video_packet(Hava *hava, int len) {
   // First time thru, do something special
   //
   if(hava->vid_starting) {
-    if(hava->vid_callback && hava->vid_header) { 
-      hava->vid_callback(hava,0,mpeg_hdr,sizeof(mpeg_hdr)); 
-    }
     hava->vid_seq=seq;
     hava->vid_ooo=1;        // first time do some OOO detection
     hava->vid_starting=0;
     hava->vid_starttime=Hava_getnow();
-    hava->vid_stattime=hava->vid_starttime+60;
+    hava->vid_stattime=hava->vid_starttime+60000;
     hava->vid_minbytes=0;
     hava->vid_totbytes=0;
+    if(hava->vid_callback && hava->vid_header) { 
+      hava->vid_callback(hava,hava->vid_starttime,mpeg_hdr,sizeof(mpeg_hdr)); 
+    }
   }
   //
   // Sequence check
@@ -406,7 +407,7 @@ int process_video_packet(Hava *hava, int len) {
       }
     }
     if(hava->vid_ooo==0) {
-      hava->vid_callback(hava,now-hava->vid_starttime,&fh->payload,len-16); 
+      hava->vid_callback(hava,now,&fh->payload,len-16); 
     }
   }
   return retval;

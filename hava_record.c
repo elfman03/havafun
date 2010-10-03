@@ -118,7 +118,7 @@ main(int argc, char *argv[]) {
   // zero second tis means go forever (no set of endtime)
   //
   if(tis) { 
-    Hava_set_videoendtime(hava,Hava_getnow()+tis);
+    Hava_set_videoendtime(hava,Hava_getnow()+tis*1000);
   }
 
   for(tmp=0;tmp!=1;) {
