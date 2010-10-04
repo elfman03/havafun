@@ -61,10 +61,11 @@ void my_callback(Hava *hava,unsigned long now,const unsigned char *buf,int len) 
 Usage() {
   fprintf(stderr,"Usage: hava_record {hava_ipaddr} {quality} {duration_sec} {tgt_mpeg}\n\n");
   fprintf(stderr,"      {hava_ipaddr} is expressed in dot form (e.g., 192.168.1.253)\n");
-  fprintf(stderr,"      {quality}     is expressed in hex as 0x00 or between '0x10'-'0x50'\n");
+  fprintf(stderr,"      {quality}     is expressed in hex as 0x00 or between '0x01'-'0x50'\n");
   fprintf(stderr,"                    Numbers >=0x30 seem to achieve the max 8Mbps thruput\n");
-  fprintf(stderr,"                    Use small numbers (~0x10-0x15) if you experience video loss\n");
-  fprintf(stderr,"                    Use 0x00 to try to figure it out (lowish quality now)\n");
+  fprintf(stderr,"                    Use small numbers (~0x01-0x15) if you experience video loss\n");
+  fprintf(stderr,"                    Recommend >=0x10 (0x01-0x03 don't work for me at all)\n");
+  fprintf(stderr,"                    Use 0x00 for broken auto-heuristic (lowish quality: ~0x0a)\n");
   fprintf(stderr,"      {duration}    is expressed in seconds.  Zero means go forever\n");
   fprintf(stderr,"      {tgt_mpeg}    is a file name that will be written\n\n");
   fprintf(stderr,"NOTE: If you use '-' for the <tgt_mpg>, it will send the output to stdout\n");
@@ -90,7 +91,7 @@ main(int argc, char *argv[]) {
   //
   if(argv[2][0]!='0' || argv[2][1]!='x') { Usage(); }
   sscanf(argv[2],"0x%x",&tmp);
-  if(tmp && (tmp<0x10 || tmp>0x50)) { Usage(); }
+  if(tmp && (tmp<0x00 || tmp>0x50)) { Usage(); }
   quality=(unsigned char)tmp;
 
   tis=atoi(argv[3]);
