@@ -3,7 +3,7 @@
 </head>
 <html>
 <h1>Hava Fun</h1>
-Purpose:  Talk directly to the Hava video streaming device, control key features from the command line (particularly on linux), grab high quality "local" video stream (particularly on linux) for eventual inclusion into MythTV.  
+Purpose:  Talk directly to the Hava video streaming device, control key features from the command line (particularly on linux), grab high quality "local" video stream (particularly on linux) for eventual inclusion into Mythtv.  
 <p>
 For testing and sample purposes, this package includes several tools and scripts. 
 <ul>
@@ -143,20 +143,46 @@ IP address.  Then use one of the following forms to tell the hava what to do.
 NOTE: There is new syntax for hava_record...  see above...
 </h3></font>
 <p>
+<font color=red><h3>
+NOTE: Work in progress; not released yet
+</h3></font>
 Corresponds to SVN revision XXX.  
 <p>
-The major work here was on recording quality.  Still have not figured out how to get the Hava to automatically choose good thruputs (it seems to want to stick around 2Mbps.  But did figure out how to manually select higher rates.  Added option to hava_record to reflect quality level.
-<p><b>Fixed:</b>
+The major work here was getting initial hack of MythTV consuming havafun working.  
+<p>
+In addition, there was major work here was on recording quality.  Still have not figured out how to get the Hava to automatically choose good thruputs (it seems to want to stick around 2Mbps.  But did figure out how to manually select higher rates.  Added option to hava_record to reflect quality level.
+<p><b>Fixed and New:</b>
 <ul>
 <li> Timing code was wrong on windows (off by 10x).  This is fixed.
+<li>
+  Parameterized video rate to allow from 0x01-0x50 (Values below 0x04 do not work for me).
+</li>
+<li>
+  Tweaked and added a few apis to hava_util to facilitate MythTV work 
+<ul> 
+<li>Hava_set_videoheader() -- specify whether to put header on front of stream</li>
+<li>Hava_set_bonus() -- save a pointer of your choice in the hava structure</li>
+<li>Hava_get_bonus() -- retreive the pointer of your choice from the hava structure</li>
+<li>Hava_getnow() -- now timing is millisecond based instead of second based</li>
+<li>Changed callbacks for hava_record to provide a time value in milliseconds</li>
+</li>
+</ul>
+</li>
+<li>
+  When streaming video, havafun can now print statistics every 60 seconds showing thruput rate
+</li>
+<li>
+  SVN now has havarecorder.{h,cpp} for current port progress using havafun with MythTV.  It kindof works.  See README.MythTV
+</li>
 </ul>
 <p><b>Known issues:</b>
 <ul>
 <li> A request has come in (SudaNim on Hava forums) to try to get the NTSC tuner to change stations too.  Thats a big unknown at the moment.
 <li> Manually setting the throttle is not my favorite idea.  We know from the Hava player stream that it is possible to get it to autoconfigure up to about 8Mbps.  Some packet magic still eludes us.
+<li> Key names are close but not perfect.  Web users report Select=0x2a and DVR=0x21.  I have to use 0x21 for select on my current FIOS box.  hava_channel lets you specify keys by number to help you find them though.
 </ul>
 <p>
-Main test environment Ubuntu 8.10 and Windows XP connecting to a Hava Wireless HD (hardware version 1003100, firmware version 270.322-32).   The Hava Wireless HD was connected to component (YPbPr) inputs and controls a Dish vip211 receiver. Others have reported limited success channel changing on other inputs and success with different set top boxes.
+Main test environment Ubuntu 10.04 and Windows XP connecting to a Hava Wireless HD (hardware version 1003100, firmware version 270.322-32).   The Hava Wireless HD was connected to component (YPbPr) inputs and controls a Dish vip211 receiver. Others have reported limited success channel changing on other inputs and success with different set top boxes.
 <hr>
 <h2>Release alpha3 -- 9/7/2009</h2>
 <font color=red><h3>

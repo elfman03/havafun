@@ -1,10 +1,29 @@
 // -*- Mode: c++ -*-
-/** 
- * HAVARecorder
+/*
+ * HAVARecorder * HavaFun code component
+ * Header file for a MythTV recorder class that is a client of havafun
+ *          Hope to donate to MythTV at some point
+ *          Used IPTVRecorder.h as a template early on
  *
- *  Plan to Distribe as part of MythTV under GPL v2 and later.
+ * Copyright (C) 2010 Chris Elford
  *
- * Used IPTVRecorder.h as a template early on
+ * This program is free software; you can redistribute it and/or modify it 
+ * under the terms of the GNU General Public License as published by the Free 
+ * Software Foundation; either version 2 of the License, or (at your option) 
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT 
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for 
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along 
+ * with this program; if not, see <http://www.gnu.org/licenses>.
+ *
+ * Linking havafun statically or dynamically with other modules is making a 
+ * combined work based on havafun. Thus, the terms and conditions of the GNU 
+ * General Public License cover the whole combination.
+ *
  */
 
 #ifndef _HAVA_RECORDER_H_
