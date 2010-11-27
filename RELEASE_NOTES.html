@@ -100,10 +100,11 @@ Note: On windows, there is an additional tool called hava_channel_nowin that wil
 Usage: hava_record {hava_ipaddr} {quality} {duration_sec} {tgt_mpeg}
 
       {hava_ipaddr} is expressed in dot form (e.g., 192.168.1.253)
-      {quality}     is expressed in hex as 0x00 or between '0x10'-'0x50'
+      {quality}     is expressed in hex as 0x00 or between '0x01'-'0x50'
                     Numbers >=0x30 seem to achieve the max 8Mbps thruput
-                    Use small numbers (~0x10-0x15) if you experience video loss
-                    Use 0x00 to try to figure it out (lowish quality now)
+                    Use small numbers (~0x01-0x15) if you experience video loss
+                    Recommend >=0x10 (0x01-0x03 don't work for me at all)
+                    Use 0x00 for broken auto-heuristic (lowish quality: ~0x0a)
       {duration}    is expressed in seconds.  Zero means go forever
       {tgt_mpeg}    is a file name that will be written
 
@@ -182,7 +183,7 @@ In addition, there was major work here was on recording quality.  Still have not
 <li> Key names are close but not perfect.  Web users report Select=0x2a and DVR=0x21.  I have to use 0x21 for select on my current FIOS box.  hava_channel lets you specify keys by number to help you find them though.
 </ul>
 <p>
-Main test environment Ubuntu 10.04 and Windows XP connecting to a Hava Wireless HD (hardware version 1003100, firmware version 270.322-32).   The Hava Wireless HD was connected to component (YPbPr) inputs and controls a Dish vip211 receiver. Others have reported limited success channel changing on other inputs and success with different set top boxes.
+Main test environment Ubuntu 10.04 and Windows XP connecting to a Hava Wireless HD (hardware version 1003100, firmware version 272.325-32).   The Hava Wireless HD was connected to component (YPbPr) inputs and controls a Fios Motorola HD QIP 7100 receiver. Others (particularly the SageTV community has reported good success channel changing on other inputs and with other set top boxes.
 <hr>
 <h2>Release alpha3 -- 9/7/2009</h2>
 <font color=red><h3>

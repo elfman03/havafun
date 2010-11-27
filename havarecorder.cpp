@@ -56,6 +56,7 @@ HavaRecorder::HavaRecorder(TVRec *rec) :
 {
     VERBOSE(VB_IMPORTANT, LOC + "HavaRecorder() -- start");
     hava=NULL;
+    ptr_base=ptr_top=ptr_empty_end=ptr_full_end=ptr_push_pt=ptr_pop_pt=0;
     aspect=width=height=0;
     positionMapType = MARK_GOP_BYFRAME;
     hava_thread=NULL;
@@ -82,15 +83,19 @@ bool HavaRecorder::Open(void)
     }
 
     hava=Hava_alloc("192.168.1.253",1,1,stderr,0);
+VERBOSE(VB_IMPORTANT, LOC + "Open() -- a");
     if(Hava_isbound(hava)) {
+VERBOSE(VB_IMPORTANT, LOC + "Open() -- b");
       Hava_set_bonus(hava, (void *)this);
       Hava_set_videocb(hava, &my_callback);
       Hava_set_videoquality(hava, 0x030);
       Hava_sendcmd(hava, HAVA_INIT, 0, 0);
+VERBOSE(VB_IMPORTANT, LOC + "Open() -- c");
       if(Hava_loop(hava, HAVA_MAGIC_INIT,0)!=1) {
         VERBOSE(VB_IMPORTANT, LOC + "Open() -- bad Hava init response");
         _error = true;
       }
+VERBOSE(VB_IMPORTANT, LOC + "Open() -- d");
     } else {
       VERBOSE(VB_IMPORTANT, LOC + "Open() -- Cant bind socket");
       _error = true;
@@ -166,6 +171,12 @@ void HavaRecorder::StartRecording(void)
     _frames_seen_count=0;
     _frames_written_count=0;
     key_base=0xffffffff;
+    if(!ptr_base) {
+      ptr_base=(unsigned char *)malloc(1024*1024*4);
+      ptr_top=ptr_base+1024*1024*4;
+      ptr_empty_end=ptr_top;
+      ptr_full_end=ptr_push_pt=ptr_pop_pt=ptr_base;
+    }
 
     status=pipe(pipes);
     if(status) {
@@ -184,18 +195,20 @@ void HavaRecorder::StartRecording(void)
     } 
     if(!_error) {
       while (_request_recording) {
-        unsigned char buf[10240];
-        status=read(pipes[0],buf,10240);
-        if(status) {
-          if(DoKeyFrame(buf,status)) {
-            CheckForRingBufferSwitch();
-          }
-          ringBuffer->Write(buf,status);
+          Pop();
           _frames_written_count=_frames_seen_count;
-        } else {
-          _error=1;
-        }
       }
+//        unsigned char buf[10240];
+//        status=read(pipes[0],buf,10240);
+//        if(status) {
+//          if(DoKeyFrame(buf,status)) {
+//            CheckForRingBufferSwitch();
+//          }
+//          ringBuffer->Write(buf,status);
+//          _frames_written_count=_frames_seen_count;
+//        } else {
+//          _error=1;
+//        }
 VERBOSE(VB_IMPORTANT, LOC + "StartRecording() -- preclosepipe0");
       close(pipes[0]); 
 VERBOSE(VB_IMPORTANT, LOC + "StartRecording() -- preclosepipe1");
@@ -207,6 +220,10 @@ VERBOSE(VB_IMPORTANT, LOC + "StartRecording() -- postjoin");
         VERBOSE(VB_IMPORTANT, LOC + "StartRecording() -- cant join child thread.  ret=" + status);
       }
       hava_thread=NULL;
+      if(ptr_base) {
+        free(ptr_base);
+        ptr_base=ptr_top=ptr_empty_end=ptr_full_end=ptr_push_pt=ptr_pop_pt=0;
+      }
     }
 
 VERBOSE(VB_IMPORTANT, LOC + "StartRecording() -- prefinishup");
@@ -229,11 +246,120 @@ void HavaRecorder::StopRecording(void)
     VERBOSE(VB_IMPORTANT, LOC + "StopRecording() -- end");
 }
 
+
 // ===================================================
-// AddData : feed data from Hava flow to mythtv
+// Push : feed data from Hava flow to staging buffer
 // ===================================================
 void HavaRecorder::Push(unsigned long now, const unsigned char *buf, unsigned int len) {
-  write(GetPipe(1),buf,len);
+  unsigned char *pee;
+  unsigned int rem;
+
+  // PRODUCER CODE:  Runs in the thread that runs Hava_loop started by MythTV recorder
+  //
+  // We need to minimize the time in the thread reading off of the socket from hava.  This 
+  // is because Hava writes data via UDP datagrams that are lossy.  We want to minimize our 
+  // loss so we do as little as possible in that thread.  I previously tried to do frame
+  // detection or mythtv ringbuffer writes without a separate thread but was getting 
+  // significant packet drops.  Hence, I decided it was better to take the extra buffer
+  // copy.
+
+  pee=ptr_empty_end;   // save pee off so it does not change on us (we read, consumer writes)
+fprintf(stderr,"Push ptr_base=%d ptr_top=%d ptr_push_pt=%d pee=%d\n",
+                ptr_base-ptr_base,ptr_top-ptr_base,ptr_push_pt-ptr_base,pee-ptr_base);
+  if(!pee) { 
+    VERBOSE(VB_IMPORTANT, LOC_ERR + "Push() No myring!  Dropping " + QString::number(len) + " bytes!");
+    return; 
+  }
+
+  if(pee<=ptr_push_pt) { 
+    // we are writing upward and pee is below us (or at us)
+    // This means smooth sailing to top of ringbuffer and then a bit more free at bottom 
+    rem=ptr_top-ptr_push_pt;
+    VERBOSE(VB_IMPORTANT, LOC + "Push(a) " + QString::number(len) + " " + QString::number(rem));
+    if(rem > len) {
+      VERBOSE(VB_IMPORTANT, LOC + "Push(a1) " + QString::number(len) + " " + QString::number(rem));
+      // Whole thing fits.  Push it in
+      memcpy(ptr_push_pt,buf,len);
+      ptr_push_pt+=len;
+      len=0;
+      ptr_full_end=ptr_push_pt;  // update consumer end pointer
+    } else {
+      VERBOSE(VB_IMPORTANT, LOC + "Push(a2) " + QString::number(len) + " " + QString::number(rem));
+      // Push part that fits and adjust pointers to continue
+      memcpy(ptr_push_pt,buf,rem); 
+      buf+=rem;
+      len-=rem;
+      ptr_push_pt=ptr_base; 
+      ptr_full_end=ptr_top;      // update consumer end point
+    }
+  }
+  if(len && pee>ptr_push_pt) { 
+    // we are writing upward and pee is above us.  We cant write past the pee 
+    rem=pee-ptr_push_pt;
+    VERBOSE(VB_IMPORTANT, LOC + "Push(b) " + QString::number(len) + " " + QString::number(rem));
+    if(rem >= len) {
+      VERBOSE(VB_IMPORTANT, LOC + "Push(b1) " + QString::number(len) + " " + QString::number(rem));
+      // Whole thing fits.  Push it in
+      memcpy(ptr_push_pt,buf,len);
+      ptr_push_pt+=len;
+      len=0;
+      ptr_full_end=ptr_push_pt;  // update consumer end point
+    }
+  } 
+  if(len) {
+    // NO ROOM AT THE INN AIEEEEEE
+    VERBOSE(VB_IMPORTANT, LOC_ERR + "Push() No room in myring.  Dropping " + QString::number(len) + " bytes!");
+  }
+}
+
+// ===================================================
+// Pop : feed data from staging buffer into MythTV RingBuffer
+// ===================================================
+void HavaRecorder::Pop() {
+  unsigned char *pfe;
+  unsigned int rem;
+
+  // CONSUMER CODE:  Runs in the MythTV Recorder Thread
+  //
+  // We need to minimize the time in the thread reading off of the socket from hava.  This 
+  // is because Hava writes data via UDP datagrams that are lossy.  We want to minimize our 
+  // loss so we do as little as possible in that thread.  I previously tried to do frame
+  // detection or mythtv ringbuffer writes without a separate thread but was getting 
+  // significant packet drops.  Hence, I decided it was better to take the extra buffer
+  // copy.
+
+  pfe=ptr_full_end;   // save pfe off so it does not change on us (we read, producer writes)
+  if(pfe==ptr_pop_pt) {  
+    // Nothing is there.  Wait a bit...
+//    VERBOSE(VB_IMPORTANT, LOC + "Pop(a)");
+    usleep(2000);
+    return;
+  }
+fprintf(stderr,"Pop ptr_base=%d ptr_top=%d ptr_pop_pt=%d pfe=%d\n",
+                ptr_base-ptr_base,ptr_top-ptr_base,ptr_pop_pt-ptr_base,pfe-ptr_base);
+
+  if(pfe>ptr_pop_pt) { 
+    // we are reading upward and pfe is above us.  We cant read past the pfe 
+    rem=pfe-ptr_pop_pt;
+    VERBOSE(VB_IMPORTANT, LOC + "Pop(b) " + QString::number(rem));
+    if(rem>127) { DoKeyFrame(ptr_pop_pt,rem); }
+    ringBuffer->Write(ptr_pop_pt,rem);
+    ptr_pop_pt=pfe;
+  }
+  if(pfe<ptr_pop_pt) { 
+    // we are reading upward and pfe is below us
+    // This means smooth sailing to top of ringbuffer and then a bit more full at bottom 
+    // We will catch the stuff at the bottom next time around (maybe with even more content)
+    rem=ptr_top-ptr_pop_pt;
+    VERBOSE(VB_IMPORTANT, LOC + "Pop(c) " + QString::number(rem));
+// NOTE MIGHT WANT TO PULL A FEW BYTES FROM ptr_base FOR KEYFRAME DETECTION ACCURACY!!!
+    if(rem>127) { DoKeyFrame(ptr_pop_pt,rem); }
+    ringBuffer->Write(ptr_pop_pt,rem);
+    ptr_pop_pt+=rem;
+  }
+  // Update so producer knows how far free space has come
+  ptr_empty_end=ptr_pop_pt;
+  if(ptr_pop_pt==ptr_top) { ptr_pop_pt=ptr_base; }
 }
 
 bool HavaRecorder::DoKeyFrame(const unsigned char *buf, unsigned int len)
@@ -312,6 +438,7 @@ bool HavaRecorder::DoKeyFrame(const unsigned char *buf, unsigned int len)
       } 
     }
   }
+  if(ret) { CheckForRingBufferSwitch(); }
   return ret;
 }
 

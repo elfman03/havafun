@@ -43,7 +43,27 @@ class HavaRecorder : public DTVRecorder
     Hava *hava;
     pthread_t hava_thread;
     long long offset;
-    unsigned long key_base, key_last_s, key_last_m, key_last_h, key_bogus;
+    unsigned long key_base, 
+                  key_last_s, 
+                  key_last_m, 
+                  key_last_h, 
+                  key_bogus;
+
+    // ptr_base                                                  ptr_top
+    // |                                                               |
+    // -----------------------------------------------------------------
+    // |fffffffffffffffffeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffff|
+    // ----------------------------------------------------------------
+    //                 / |                           / |
+    //     ptr_full_end  ptr_push_pt     ptr_empty_end ptr_pop_pt
+
+    unsigned char *ptr_base;     // base of ring
+    unsigned char *ptr_top;      // top of ring
+    unsigned char *ptr_empty_end; // ptr to last ring byte that is empty
+    unsigned char *ptr_full_end;  // ptr to last ring byte that is full
+    unsigned char *ptr_push_pt;   // ptr to where producer will push new stuff
+    unsigned char *ptr_pop_pt;    // ptr to where consumere will pop old stuff
+
     int pipes[2],
         record_byte_ct,
         record_seq_ct,
@@ -52,6 +72,7 @@ class HavaRecorder : public DTVRecorder
         height;
 
     bool DoKeyFrame(const unsigned char *data, unsigned int dataSize);
+    void Pop();
 
   public:
 
