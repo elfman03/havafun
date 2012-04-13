@@ -1,0 +1,122 @@
+diff --git a/mythtv/libs/libmythtv/cardutil.h b/mythtv/libs/libmythtv/cardutil.h
+index 8c7fa0d..08f8a08 100644
+--- a/mythtv/libs/libmythtv/cardutil.h
++++ b/mythtv/libs/libmythtv/cardutil.h
+@@ -182,7 +182,7 @@ class MTV_PUBLIC CardUtil
+             (rawtype == "FIREWIRE")  || (rawtype == "HDHOMERUN") ||
+             (rawtype == "FREEBOX")   || (rawtype == "ASI")       ||
+             (rawtype == "IMPORT")    || (rawtype == "DEMO")      ||
+-            (rawtype == "CETON");
++            (rawtype == "CETON")     || (rawtype == "HAVA");
+     }
+ 
+     // Card creation and deletion
+diff --git a/mythtv/libs/libmythtv/channelbase.cpp b/mythtv/libs/libmythtv/channelbase.cpp
+index 8c31420..b208d26 100644
+--- a/mythtv/libs/libmythtv/channelbase.cpp
++++ b/mythtv/libs/libmythtv/channelbase.cpp
+@@ -32,6 +32,7 @@ using namespace std;
+ #include "channelbase.h"
+ #include "channelutil.h"
+ #include "frequencies.h"
++#include "havachannel.h"
+ #include "hdhrchannel.h"
+ #include "iptvchannel.h"
+ #include "mythlogging.h"
+@@ -1168,6 +1169,10 @@ ChannelBase *ChannelBase::CreateChannel(
+         channel = new FirewireChannel(tvrec, genOpt.videodev, fwOpt);
+ #endif
+     }
++    else if (genOpt.cardtype == "HAVA")
++    {
++        channel = new HavaChannel(tvrec);
++    }
+     else if (genOpt.cardtype == "HDHOMERUN")
+     {
+ #ifdef USING_HDHOMERUN
+diff --git a/mythtv/libs/libmythtv/libmythtv.pro b/mythtv/libs/libmythtv/libmythtv.pro
+index f50d2cb..b4018c0 100644
+--- a/mythtv/libs/libmythtv/libmythtv.pro
++++ b/mythtv/libs/libmythtv/libmythtv.pro
+@@ -211,6 +211,10 @@ SOURCES += filewriterbase.cpp       avformatwriter.cpp
+ HEADERS += httplivestream.h
+ SOURCES += httplivestream.cpp
+ 
++# HAVA stuff
++HEADERS += havasignalmonitor.h   havachannel.h   havarecorder.h   hava_util.h hava_util_internals.h
++SOURCES += havasignalmonitor.cpp                 havarecorder.cpp hava_util.c
++
+ # Teletext stuff
+ HEADERS += teletextdecoder.h        teletextreader.h   vbilut.h
+ SOURCES += teletextdecoder.cpp      teletextreader.cpp vbilut.cpp
+diff --git a/mythtv/libs/libmythtv/recorderbase.cpp b/mythtv/libs/libmythtv/recorderbase.cpp
+index 53d0a2c..bedd354 100644
+--- a/mythtv/libs/libmythtv/recorderbase.cpp
++++ b/mythtv/libs/libmythtv/recorderbase.cpp
+@@ -12,12 +12,14 @@ using namespace std;
+ #include "dummychannel.h"
+ #include "hdhrrecorder.h"
+ #include "iptvrecorder.h"
++#include "havarecorder.h"
+ #include "mpegrecorder.h"
+ #include "recorderbase.h"
+ #include "cetonchannel.h"
+ #include "asirecorder.h"
+ #include "dvbrecorder.h"
+ #include "hdhrchannel.h"
++#include "havachannel.h"
+ #include "iptvchannel.h"
+ #include "mythlogging.h"
+ #include "programinfo.h"
+@@ -509,6 +511,11 @@ RecorderBase *RecorderBase::CreateRecorder(
+         recorder = new MpegRecorder(tvrec);
+ #endif // USING_HDPVR
+     }
++    else if (genOpt.cardtype == "HAVA")
++    {
++        recorder = new HavaRecorder(
++            tvrec, dynamic_cast<HavaChannel*>(channel));
++    }
+     else if (genOpt.cardtype == "FIREWIRE")
+     {
+ #ifdef USING_FIREWIRE
+diff --git a/mythtv/libs/libmythtv/signalmonitor.cpp b/mythtv/libs/libmythtv/signalmonitor.cpp
+index 9bfc339..57e7712 100644
+--- a/mythtv/libs/libmythtv/signalmonitor.cpp
++++ b/mythtv/libs/libmythtv/signalmonitor.cpp
+@@ -34,6 +34,9 @@ extern "C" {
+ #   include "hdhrchannel.h"
+ #endif
+ 
++#include "havasignalmonitor.h"
++#include "havachannel.h"
++
+ #ifdef USING_IPTV
+ #   include "iptvsignalmonitor.h"
+ #   include "iptvchannel.h"
+@@ -121,6 +124,12 @@ SignalMonitor *SignalMonitor::Init(QString cardtype, int db_cardnum,
+             signalMonitor = new HDHRSignalMonitor(db_cardnum, hdhrc);
+     }
+ #endif
++    if (cardtype.toUpper() == "HAVA")
++    {
++        HavaChannel *havac = dynamic_cast<HavaChannel*>(channel);
++        if (havac)
++            signalMonitor = new HavaSignalMonitor(db_cardnum, havac);
++    }
+ 
+ #ifdef USING_CETON
+     if (cardtype.toUpper() == "CETON")
+diff --git a/mythtv/libs/libmythtv/signalmonitor.h b/mythtv/libs/libmythtv/signalmonitor.h
+index aa9a051..68c5d0e 100644
+--- a/mythtv/libs/libmythtv/signalmonitor.h
++++ b/mythtv/libs/libmythtv/signalmonitor.h
+@@ -297,7 +297,7 @@ inline QString sm_flags_to_string(uint64_t flags)
+ 
+ inline bool SignalMonitor::IsRequired(const QString &cardtype)
+ {
+-    return (cardtype != "IMPORT" && cardtype != "DEMO");
++    return (cardtype != "IMPORT" && cardtype != "DEMO" && cardtype!= "HAVA");
+ }
+ 
+ inline bool SignalMonitor::IsSupported(const QString &cardtype)
