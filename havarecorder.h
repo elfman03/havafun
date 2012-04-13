@@ -32,6 +32,7 @@
 #include <pthread.h>
 
 #include "dtvrecorder.h"
+class HavaChannel;
 
 struct Hava;
 
@@ -47,6 +48,7 @@ class HavaRecorder : public DTVRecorder
                   key_last_s, 
                   key_last_m, 
                   key_last_h, 
+                  key_last_f, 
                   key_bogus;
 
     // ptr_base                                                  ptr_top
@@ -64,8 +66,9 @@ class HavaRecorder : public DTVRecorder
     unsigned char *ptr_push_pt;   // ptr to where producer will push new stuff
     unsigned char *ptr_pop_pt;    // ptr to where consumere will pop old stuff
 
-    int pipes[2],
-        record_byte_ct,
+    HavaChannel *channel;
+
+    int record_byte_ct,
         record_seq_ct,
         aspect,
         width,
@@ -76,10 +79,8 @@ class HavaRecorder : public DTVRecorder
 
   public:
 
-    HavaRecorder(TVRec *rec);
+    HavaRecorder(TVRec *rec, HavaChannel*);
     ~HavaRecorder();
-
-    int GetPipe(int which);
 
     bool Open(void);
     void Close(void);
