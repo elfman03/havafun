@@ -87,7 +87,7 @@ class HavaRecorder : public DTVRecorder
 
     virtual void Pause(bool clear = true);
 
-    virtual void StartRecording(void);
+    virtual void run(void);
     virtual void StopRecording(void);
 
     virtual void SetOptionsFromProfile(RecordingProfile*, const QString&,
