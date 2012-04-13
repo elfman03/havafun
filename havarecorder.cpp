@@ -34,8 +34,8 @@ extern "C" {
 
 // MythTV headers
 #include "programinfo.h"
-#include "mythverbose.h"
-#include "RingBuffer.h"
+#include "mythlogging.h"
+#include "ringbuffer.h"
 #include "havarecorder.h"
 
 //#define DEBUGGING_MODE 1
@@ -72,11 +72,12 @@ HavaRecorder::~HavaRecorder()
 
 bool HavaRecorder::Open(void)
 {
-    _error = false;
+    _error = QString();
+    bool err=false;
 
     // should not happen but just in case
     if(hava) { 
-      VERBOSE(VB_IMPORTANT, LOC + "Open() -- close unexpected preexisting hava");
+      LOG(VB_RECORD, LOG_ERR, LOC + "Open() -- close unexpected preexisting hava");
       Hava_close(hava); 
       hava=0;
     }
@@ -88,22 +89,24 @@ bool HavaRecorder::Open(void)
       Hava_set_videoquality(hava, 0x030);
       Hava_sendcmd(hava, HAVA_INIT, 0, 0);
       if(Hava_loop(hava, HAVA_MAGIC_INIT,0)!=1) {
-        VERBOSE(VB_IMPORTANT, LOC + "Open() -- bad Hava init response");
-        _error = true;
+        LOG(VB_RECORD, LOG_ERR, LOC + "Open() -- bad Hava init response");
+        _error = "Open() -- bad Hava init response";
+        err=true;
       }
     } else {
-      VERBOSE(VB_IMPORTANT, LOC + "Open() -- Cant bind socket");
-      _error = true;
+      LOG(VB_RECORD, LOG_ERR, LOC + "Open() -- Cant bind socket");
+      _error = "Open() -- Cant bind socket";
+      err=true;
     }
 
-    if(_error) {
+    if(err) {
       if(hava) { Hava_close(hava); }
       hava=0;
     }
 
     offset=0;
 
-    return !_error;
+    return !err;
 }
 
 void HavaRecorder::Close(void)
@@ -121,11 +124,11 @@ void HavaRecorder::Pause(bool clear)
 
 //void HavaRecorder::Unpause(void)
 //{
-//    VERBOSE(VB_RECORD, LOC + "Unpause() -- begin");
+//    LOG(VB_RECORD, LOG_INFO, LOC + "Unpause() -- begin");
 //
 //    DTVRecorder::Unpause();
 //
-//    VERBOSE(VB_RECORD, LOC + "Unpause() -- end");
+//    LOG(VB_RECORD, LOG_INFO, LOC + "Unpause() -- end");
 //}
 
 static void *hava_loop(void *p) {
@@ -135,19 +138,21 @@ static void *hava_loop(void *p) {
   pthread_exit(NULL);
 }
 
-void HavaRecorder::StartRecording(void)
+void HavaRecorder::run(void)
 {
     int status;
+    bool err=false;
     if (!Open())
     {
-        _error = true;
+        _error = "HAVA - starting recording but not open!";
+        err=true;
         return;
     }
 
     // Start up...
-    _error = false;
-    _recording = true;
-    _request_recording = true;
+    _error = QString();
+    recording = true;
+    request_recording = true;
     _frames_seen_count=0;
     _frames_written_count=0;
     key_base=0xffffffff;
@@ -158,22 +163,23 @@ void HavaRecorder::StartRecording(void)
       ptr_full_end=ptr_push_pt=ptr_pop_pt=ptr_base;
     }
 
-    if(!_error) {
+    if(!err) {
       status=pthread_create(&hava_thread,NULL,&hava_loop,hava);
       if(status) {
-        VERBOSE(VB_IMPORTANT, LOC + "StartRecording() -- cant start child thread.  ret=" + status);
+        LOG(VB_RECORD, LOG_ERR, LOC + "StartRecording() -- cant start child thread.  ret=" + status);
         hava_thread=NULL;
-        _error=true; 
+        _error="HAVA StartRecording() -- cant start child thread!"; 
+        err=true;
       }
     } 
-    if(!_error) {
-      while (_request_recording) {
+    if(!err) {
+      while (IsRecordingRequested() && !IsErrored()) {
           Pop();
           _frames_written_count=_frames_seen_count;
       }
       status=pthread_join(hava_thread,NULL);
       if(status) {
-        VERBOSE(VB_IMPORTANT, LOC + "StartRecording() -- cant join child thread.  ret=" + status);
+        LOG(VB_RECORD, LOG_ERR, LOC + "StartRecording() -- cant join child thread.  ret=" + status);
       }
       hava_thread=NULL;
       if(ptr_base) {
@@ -186,14 +192,14 @@ void HavaRecorder::StartRecording(void)
     FinishRecording();
     Close();
 
-    _recording = false;
+    recording = false;
 }
 
 void HavaRecorder::StopRecording(void)
 {
     Pause();
 
-    _request_recording = false;
+    request_recording = false;
 }
 
 
@@ -216,7 +222,7 @@ void HavaRecorder::Push(unsigned long now, const unsigned char *buf, unsigned in
   pee=ptr_empty_end;   // save pee off so it does not change on us (we read, consumer writes)
 
 #ifdef DEBUGGING_MODE 
-  VERBOSE(VB_IMPORTANT, LOC + "Push len="         + QString::number(len)
+  LOG(VB_RECORD, LOG_INFO, LOC + "Push len="         + QString::number(len)
                                 + " ptr_base="    + QString::number(ptr_base-ptr_base)
                                 + " ptr_top="     + QString::number(ptr_top-ptr_base)
                                 + " ptr_push_pt=" + QString::number(ptr_push_pt-ptr_base)
@@ -225,7 +231,7 @@ void HavaRecorder::Push(unsigned long now, const unsigned char *buf, unsigned in
 #endif
 
   if(!pee) { 
-    VERBOSE(VB_IMPORTANT, LOC_ERR + "Push() No myring!  Dropping " + QString::number(len) + " bytes!");
+    LOG(VB_RECORD, LOG_ERR, LOC_ERR + "Push() No myring!  Dropping " + QString::number(len) + " bytes!");
     return; 
   }
 
@@ -234,11 +240,11 @@ void HavaRecorder::Push(unsigned long now, const unsigned char *buf, unsigned in
     // This means smooth sailing to top of ringbuffer and then a bit more free at bottom 
     rem=ptr_top-ptr_push_pt;
 #ifdef DEBUGGING_MODE 
-    VERBOSE(VB_IMPORTANT, LOC + "Push(a) " + QString::number(len) + " " + QString::number(rem));
+    LOG(VB_RECORD, LOG_INFO, LOC + "Push(a) " + QString::number(len) + " " + QString::number(rem));
 #endif
     if(rem > len) {
 #ifdef DEBUGGING_MODE 
-      VERBOSE(VB_IMPORTANT, LOC + "Push(a1) " + QString::number(len) + " " + QString::number(rem));
+      LOG(VB_RECORD, LOG_INFO, LOC + "Push(a1) " + QString::number(len) + " " + QString::number(rem));
 #endif
       // Whole thing fits.  Push it in
       memcpy(ptr_push_pt,buf,len);
@@ -247,7 +253,7 @@ void HavaRecorder::Push(unsigned long now, const unsigned char *buf, unsigned in
       ptr_full_end=ptr_push_pt;  // update consumer end pointer
     } else {
 #ifdef DEBUGGING_MODE 
-      VERBOSE(VB_IMPORTANT, LOC + "Push(a2) " + QString::number(len) + " " + QString::number(rem));
+      LOG(VB_RECORD, LOG_INFO, LOC + "Push(a2) " + QString::number(len) + " " + QString::number(rem));
 #endif
       // Push part that fits and adjust pointers to continue
       memcpy(ptr_push_pt,buf,rem); 
@@ -261,11 +267,11 @@ void HavaRecorder::Push(unsigned long now, const unsigned char *buf, unsigned in
     // we are writing upward and pee is above us.  We cant write past the pee 
     rem=pee-ptr_push_pt;
 #ifdef DEBUGGING_MODE 
-    VERBOSE(VB_IMPORTANT, LOC + "Push(b) " + QString::number(len) + " " + QString::number(rem));
+    LOG(VB_RECORD, LOG_INFO, LOC + "Push(b) " + QString::number(len) + " " + QString::number(rem));
 #endif
     if(rem >= len) {
 #ifdef DEBUGGING_MODE 
-      VERBOSE(VB_IMPORTANT, LOC + "Push(b1) " + QString::number(len) + " " + QString::number(rem));
+      LOG(VB_RECORD, LOG_INFO, LOC + "Push(b1) " + QString::number(len) + " " + QString::number(rem));
 #endif
       // Whole thing fits.  Push it in
       memcpy(ptr_push_pt,buf,len);
@@ -276,7 +282,7 @@ void HavaRecorder::Push(unsigned long now, const unsigned char *buf, unsigned in
   } 
   if(len) {
     // NO ROOM AT THE INN AIEEEEEE
-    VERBOSE(VB_IMPORTANT, LOC_ERR + "Push() No room in myring.  Dropping " + QString::number(len) + " bytes!");
+    LOG(VB_RECORD, LOG_ERR, LOC_ERR + "Push() No room in myring.  Dropping " + QString::number(len) + " bytes!");
   }
 }
 
@@ -300,7 +306,7 @@ void HavaRecorder::Pop() {
   if(pfe==ptr_pop_pt) {  
     // Nothing is there.  Wait a bit...
 //#ifdef DEBUGGING_MODE 
-//      VERBOSE(VB_IMPORTANT, LOC + "Pop(0)");
+//      LOG(VB_RECORD, LOG_INFO, LOC + "Pop(0)");
 //#endif
     usleep(2000);
     return;
@@ -310,7 +316,7 @@ void HavaRecorder::Pop() {
   if(ptr_pop_pt==ptr_top) { ptr_pop_pt=ptr_base; }
 
 #ifdef DEBUGGING_MODE 
-  VERBOSE(VB_IMPORTANT, LOC + "Pop ptr_base="   + QString::number(ptr_base-ptr_base)
+  LOG(VB_RECORD, LOG_INFO, , LOC + "Pop ptr_base="   + QString::number(ptr_base-ptr_base)
                                + " ptr_top="    + QString::number(ptr_top-ptr_base)
                                + " ptr_pop_pt=" + QString::number(ptr_pop_pt-ptr_base)
                                + " pfe="        + QString::number(pfe-ptr_base));
@@ -320,7 +326,7 @@ void HavaRecorder::Pop() {
     // we are reading upward and pfe is above us.  We cant read past the pfe 
     rem=pfe-ptr_pop_pt;
 #ifdef DEBUGGING_MODE 
-    VERBOSE(VB_IMPORTANT, LOC + "Pop(a) " + QString::number(rem));
+    LOG(VB_RECORD, LOG_INFO, LOC + "Pop(a) " + QString::number(rem));
 #endif
     DoKeyFrame(ptr_pop_pt,rem); 
     ringBuffer->Write(ptr_pop_pt,rem);
@@ -332,7 +338,7 @@ void HavaRecorder::Pop() {
     // We will catch the stuff at the bottom next time around (maybe with even more content)
     rem=ptr_top-ptr_pop_pt;
 #ifdef DEBUGGING_MODE 
-    VERBOSE(VB_IMPORTANT, LOC + "Pop(b) " + QString::number(rem));
+    LOG(VB_RECORD, LOG_INFO, LOC + "Pop(b) " + QString::number(rem));
 #endif
     DoKeyFrame(ptr_pop_pt,rem); 
     ringBuffer->Write(ptr_pop_pt,rem);
@@ -381,7 +387,7 @@ bool HavaRecorder::DoKeyFrame(const unsigned char *buf, unsigned int len)
         // reset key detection if we got more than 3 bogus ones in a row
         //
 //#ifdef DEBUGGING_MODE 
-        VERBOSE(VB_IMPORTANT, LOC + "Reset Key: hr="   + QString::number(hr) 
+        LOG(VB_RECORD, LOG_WARNING, LOC + "Reset Key: hr="   + QString::number(hr) 
                                        +     " min="   + QString::number(min) 
                                        +     " sec="   + QString::number(sec) 
                                        +      " fr="   + QString::number(fr) 
@@ -421,7 +427,7 @@ bool HavaRecorder::DoKeyFrame(const unsigned char *buf, unsigned int len)
       if(oops) {
         key_bogus++;
 #ifdef DEBUGGING_MODE 
-        VERBOSE(VB_IMPORTANT, LOC + "Skip BogusKey: hr="   + QString::number(hr) 
+        LOG(VB_RECORD, LOG_WARNING, LOC + "Skip BogusKey: hr="   + QString::number(hr) 
                                            +     " min="   + QString::number(min) 
                                            +     " sec="   + QString::number(sec) 
                                            +      " fr="   + QString::number(fr) 
@@ -439,7 +445,7 @@ bool HavaRecorder::DoKeyFrame(const unsigned char *buf, unsigned int len)
         _frames_seen_count=x-key_base;
 
 #ifdef DEBUGGING_MODE 
-        VERBOSE(VB_IMPORTANT, LOC + "KeyFrame"
+        LOG(VB_RECORD, LOG_INFO, LOC + "KeyFrame"
                                   +       " F=" + QString::number(_frames_seen_count)
                                   +     " pos=" + QString::number(startpos+i)
                                   +      " hr=" + QString::number(hr) 
