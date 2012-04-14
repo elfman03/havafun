@@ -43,6 +43,7 @@ class HavaRecorder : public DTVRecorder
   private: 
     Hava *hava;
     pthread_t hava_thread;
+    bool hava_funnel;  // should hava funnel output or discard it
     long long offset;
     unsigned long key_base, 
                   key_last_s, 
@@ -85,10 +86,9 @@ class HavaRecorder : public DTVRecorder
     bool Open(void);
     void Close(void);
 
-    virtual void Pause(bool clear = true);
-
     virtual void run(void);
-    virtual void StopRecording(void);
+
+    bool ShouldHavaFunnel() { return hava_funnel; }
 
     virtual void SetOptionsFromProfile(RecordingProfile*, const QString&,
                                        const QString&, const QString&) {}
@@ -96,6 +96,9 @@ class HavaRecorder : public DTVRecorder
     void Push(unsigned long now, const unsigned char *data, unsigned int dataSize);
 
     virtual void SetStreamData(void) {}
+
+  protected:     
+    virtual bool PauseAndWait(int timeout = 100);
 
   private:
     HavaRecorder &operator=(const HavaRecorder&); //< avoid default impl
