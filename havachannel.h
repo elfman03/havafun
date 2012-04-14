@@ -23,7 +23,7 @@ class HavaChannel : public DTVChannel
     ~HavaChannel(void) { return; }
 
     bool IsTunable(const QString &input, const QString &channum) const
-        { return false; }
+        { return true; }
 
     bool Open(void)     { myopen=true; return InitializeInputs(); }
     void Close(void)    { myopen=false; return; }

@@ -37,6 +37,7 @@ extern "C" {
 #include "mythlogging.h"
 #include "ringbuffer.h"
 #include "havarecorder.h"
+#include "tv_rec.h"
 
 //#define DEBUGGING_MODE 1
 
@@ -45,7 +46,9 @@ extern "C" {
 
 static void my_callback(Hava *h,unsigned long now,const unsigned char *buf, int len) {
   HavaRecorder *r=(HavaRecorder *)Hava_get_bonus(h);
-  r->Push(now,buf,len);
+  if(r->ShouldHavaFunnel()) {
+    r->Push(now,buf,len);
+  }
 }
 
 // ============================================================================
@@ -115,11 +118,51 @@ void HavaRecorder::Close(void)
     hava=0;
 }
 
-void HavaRecorder::Pause(bool clear)
+/** \fn HavaRecorder::PauseAndWait(int)
+ *  \brief If request_pause is true, sets pause and blocks up to
+ *         timeout milliseconds or until unpaused, whichever is
+ *         sooner.
+ *
+ *  This is the where we actually do the pausing. For most recorders
+ *  that need to do something special on pause, this is the method
+ *  to overide.
+ *
+ *  \param timeout number of milliseconds to wait defaults to 100.
+ *  \return true if recorder is paused.
+ */
+bool HavaRecorder::PauseAndWait(int timeout)
 {
-    DTVRecorder::Pause(clear);
+    QMutexLocker locker(&pauseLock);
+    if (request_pause)
+    {
+        if (!IsPaused(true))
+        {
+            LOG(VB_RECORD, LOG_INFO, LOC + "PauseAndWait() -- setting pause");
+            hava_funnel=false;
+            paused = true;
+            pauseWait.wakeAll();
+            if (tvrec)
+                tvrec->RecorderPaused();
+        }
 
-    if(hava) { Hava_set_videoendtime(hava, Hava_getnow()); }
+        unpauseWait.wait(&pauseLock, timeout);
+    }
+
+    if (!request_pause && IsPaused(true))
+    {
+        LOG(VB_RECORD, LOG_INFO, LOC + "PauseAndWait() -- clearing pause");
+        if(ptr_base && ptr_top) {
+          ptr_empty_end=ptr_top;
+          ptr_full_end=ptr_push_pt=ptr_pop_pt=ptr_base;
+        } else {
+          LOG(VB_RECORD, LOG_ERR, LOC + "unpause -- no buffer");
+        }
+        hava_funnel=true;
+        paused = false;
+        unpauseWait.wakeAll();
+    }
+
+    return IsPaused(true);
 }
 
 //void HavaRecorder::Unpause(void)
@@ -156,6 +199,7 @@ void HavaRecorder::run(void)
     _frames_seen_count=0;
     _frames_written_count=0;
     key_base=0xffffffff;
+    hava_funnel=false;
     if(!ptr_base) {
       ptr_base=(unsigned char *)malloc(1024*1024*4);
       ptr_top=ptr_base+1024*1024*4;
@@ -164,23 +208,40 @@ void HavaRecorder::run(void)
     }
 
     if(!err) {
+      hava_funnel=true;
       status=pthread_create(&hava_thread,NULL,&hava_loop,hava);
       if(status) {
         LOG(VB_RECORD, LOG_ERR, LOC + "StartRecording() -- cant start child thread.  ret=" + status);
         hava_thread=NULL;
         _error="HAVA StartRecording() -- cant start child thread!"; 
+        hava_funnel=false;
         err=true;
       }
     } 
     if(!err) {
+      LOG(VB_RECORD, LOG_ERR, LOC + "run() -- main loop begin");
       while (IsRecordingRequested() && !IsErrored()) {
-          Pop();
-          _frames_written_count=_frames_seen_count;
+
+          if(PauseAndWait()) 
+            continue;
+
+          if(!IsRecordingRequested())
+            break;
+
+          if(!paused) {
+            Pop();
+            _frames_written_count=_frames_seen_count;
+          }
       }
+      LOG(VB_RECORD, LOG_ERR, LOC + "run() -- main loop end... drain");
+      hava_funnel=false;
+      Hava_set_videoendtime(hava, Hava_getnow());
+
       status=pthread_join(hava_thread,NULL);
       if(status) {
         LOG(VB_RECORD, LOG_ERR, LOC + "StartRecording() -- cant join child thread.  ret=" + status);
       }
+      LOG(VB_RECORD, LOG_ERR, LOC + "run() -- hava thread finished");
       hava_thread=NULL;
       if(ptr_base) {
         free(ptr_base);
@@ -194,14 +255,6 @@ void HavaRecorder::run(void)
 
     recording = false;
 }
-
-void HavaRecorder::StopRecording(void)
-{
-    Pause();
-
-    request_recording = false;
-}
-
 
 // ===================================================
 // Push : feed data from Hava flow to staging buffer
