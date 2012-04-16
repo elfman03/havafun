@@ -1,8 +1,25 @@
 diff --git a/mythtv/libs/libmythtv/cardutil.h b/mythtv/libs/libmythtv/cardutil.h
-index 8c7fa0d..08f8a08 100644
+index 8c7fa0d..6e51fe0 100644
 --- a/mythtv/libs/libmythtv/cardutil.h
 +++ b/mythtv/libs/libmythtv/cardutil.h
-@@ -182,7 +182,7 @@ class MTV_PUBLIC CardUtil
+@@ -66,6 +66,7 @@ class MTV_PUBLIC CardUtil
+         DEMO      = 15,
+         ASI       = 16,
+         CETON     = 17,
++        HAVA      = 18,
+     };
+ 
+     static enum CARD_TYPES toCardType(const QString &name)
+@@ -106,6 +107,8 @@ class MTV_PUBLIC CardUtil
+             return ASI;
+         if ("CETON" == name)
+             return CETON;
++        if ("HAVA" == name)
++            return HAVA;
+         return ERROR_UNKNOWN;
+     }
+ 
+@@ -182,7 +185,7 @@ class MTV_PUBLIC CardUtil
              (rawtype == "FIREWIRE")  || (rawtype == "HDHOMERUN") ||
              (rawtype == "FREEBOX")   || (rawtype == "ASI")       ||
              (rawtype == "IMPORT")    || (rawtype == "DEMO")      ||
@@ -12,7 +29,7 @@ index 8c7fa0d..08f8a08 100644
  
      // Card creation and deletion
 diff --git a/mythtv/libs/libmythtv/channelbase.cpp b/mythtv/libs/libmythtv/channelbase.cpp
-index 8c31420..b208d26 100644
+index 8c31420..d836c6e 100644
 --- a/mythtv/libs/libmythtv/channelbase.cpp
 +++ b/mythtv/libs/libmythtv/channelbase.cpp
 @@ -32,6 +32,7 @@ using namespace std;
@@ -29,7 +46,7 @@ index 8c31420..b208d26 100644
      }
 +    else if (genOpt.cardtype == "HAVA")
 +    {
-+        channel = new HavaChannel(tvrec);
++        channel = new HavaChannel(genOpt.videodev, tvrec);
 +    }
      else if (genOpt.cardtype == "HDHOMERUN")
      {
@@ -107,16 +124,217 @@ index 9bfc339..57e7712 100644
  
  #ifdef USING_CETON
      if (cardtype.toUpper() == "CETON")
-diff --git a/mythtv/libs/libmythtv/signalmonitor.h b/mythtv/libs/libmythtv/signalmonitor.h
-index aa9a051..68c5d0e 100644
---- a/mythtv/libs/libmythtv/signalmonitor.h
-+++ b/mythtv/libs/libmythtv/signalmonitor.h
-@@ -297,7 +297,7 @@ inline QString sm_flags_to_string(uint64_t flags)
+diff --git a/mythtv/libs/libmythtv/videosource.cpp b/mythtv/libs/libmythtv/videosource.cpp
+index 7bd2701..940e256 100644
+--- a/mythtv/libs/libmythtv/videosource.cpp
++++ b/mythtv/libs/libmythtv/videosource.cpp
+@@ -2285,6 +2285,8 @@ CaptureCardGroup::CaptureCardGroup(CaptureCard &parent) :
+     addTarget("HDHOMERUN", new HDHomeRunConfigurationGroup(parent));
+ #endif // USING_HDHOMERUN
  
- inline bool SignalMonitor::IsRequired(const QString &cardtype)
- {
--    return (cardtype != "IMPORT" && cardtype != "DEMO");
-+    return (cardtype != "IMPORT" && cardtype != "DEMO" && cardtype!= "HAVA");
++    addTarget("HAVA", new HavaConfigurationGroup(parent));
++
+ #ifdef USING_IPTV
+     addTarget("FREEBOX",   new IPTVConfigurationGroup(parent));
+ #endif // USING_IPTV
+@@ -2497,6 +2499,9 @@ void CardType::fillSelections(SelectSetting* setting)
+         QObject::tr("HDHomeRun DTV tuner box"), "HDHOMERUN");
+ #endif // USING_HDHOMERUN
+ 
++    setting->addSelection(
++        QObject::tr("Monsoon Multimedia Hava Box"), "HAVA");
++
+ #ifdef USING_IPTV
+     setting->addSelection(QObject::tr("Network recorder"), "FREEBOX");
+ #endif // USING_IPTV
+@@ -3864,3 +3869,101 @@ void DVBConfigurationGroup::DVBExtraPanel(void)
+     acw.exec();
+     parent.SetInstanceCount(acw.GetInstanceCount());
  }
++
++// Monsoon Multimedia Hava components
++
++HavaSetting::HavaSetting(const char* label, const char* helptext)
++{
++    setLabel(QObject::tr(label));
++    setHelpText(tr(helptext));
++    connect(this, SIGNAL(valueChanged( const QString&)),
++            this, SLOT(  UpdateDevices(const QString&)));
++}
++
++void HavaSetting::UpdateDevices(const QString &v)
++{
++    if (isEnabled())
++        emit NewValue(v);
++}
++
++void HavaSetting::LoadValue(const QString &value)
++{
++    setValue(value);
++}
++
++HavaInputID::HavaInputID(const CaptureCard &parent) :
++    LabelSetting(this),
++    CaptureCardDBStorage(this, parent, "defaultinput"),
++    _input()
++{
++    setLabel(tr("Input ID"));
++    setHelpText(tr("Default Input of Hava device"));
++}
++void HavaInputID::SetInput(const QString &input)
++{
++   _input = "MPEG2TS";
++   setValue(QString("%1").arg(_input));
++}
++void HavaInputID::Load(void)
++{
++    CaptureCardDBStorage::Load();
++//    UpdateValues();
++}
++
++HavaDeviceID::HavaDeviceID(const CaptureCard &parent) :
++    LabelSetting(this),
++    CaptureCardDBStorage(this, parent, "videodevice"),
++    _ip()
++{
++    setLabel(tr("Device ID"));
++    setHelpText(tr("Device ID of Hava device"));
++}
++void HavaDeviceID::SetIP(const QString &ip)
++{
++    QString regexp = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){4}$";
++    if (QRegExp(regexp).exactMatch(ip + "."))
++    {
++        _ip = ip;
++        setValue(QString("%1").arg(_ip));
++    }
++}
++void HavaDeviceID::Load(void)
++{
++    CaptureCardDBStorage::Load();
++    UpdateValues();
++}
++void HavaDeviceID::UpdateValues(void)
++{
++    QRegExp newstyle("^([0-9.]+)-(\\d|RTP)\\.(\\d)$");
++    if (newstyle.exactMatch(getValue()))
++    {
++        emit LoadedIP(newstyle.cap(1));
++    }
++}
++
++HavaConfigurationGroup::HavaConfigurationGroup(CaptureCard& a_parent):
++    VerticalConfigurationGroup(false, true, false, false),
++    parent(a_parent)
++{
++    setUseLabel(false);
++
++    deviceid = new HavaDeviceID(parent);
++    cardip    = new HavaSetting(
++        "IP Address",
++        "Make sure device has a static IP address and put that number here (e.g., 192.168.1.253).  Setting IP also sets input to 'MPEG2TS'.  Remember to set up an external tuner command!");
++    inputid    = new HavaInputID(parent);
++    addChild(cardip);
++    addChild(deviceid);
++    addChild(inputid);
++
++    connect(cardip,    SIGNAL(NewValue(const QString&)),
++            deviceid,  SLOT(  SetIP(const QString&)));
++    connect(cardip,    SIGNAL(NewValue(const QString&)),
++            inputid,  SLOT(  SetInput(const QString&)));
++    connect(deviceid,  SIGNAL(LoadedIP(const QString&)),
++            cardip,    SLOT(  LoadValue(const QString&)));
++    connect(deviceid,  SIGNAL(LoadedIP(const QString&)),
++            inputid, SLOT(  LoadValue(const QString&)));
++};
++
++
+diff --git a/mythtv/libs/libmythtv/videosource.h b/mythtv/libs/libmythtv/videosource.h
+index 5d21225..559811c 100644
+--- a/mythtv/libs/libmythtv/videosource.h
++++ b/mythtv/libs/libmythtv/videosource.h
+@@ -917,6 +917,7 @@ class CetonSetting : public TransLineEditSetting
+     void LoadValue(const QString&);
+ };
  
- inline bool SignalMonitor::IsSupported(const QString &cardtype)
++
+ class CetonDeviceID : public LabelSetting, public CaptureCardDBStorage
+ {
+     Q_OBJECT
+@@ -944,4 +945,76 @@ class CetonDeviceID : public LabelSetting, public CaptureCardDBStorage
+     QString _tuner;
+ };
+ 
++// Monsoon Multimedia Hava components
++
++class HavaSetting : public TransLineEditSetting
++{
++    Q_OBJECT
++
++  public:
++    HavaSetting(const char* label, const char* helptext);
++
++  signals:
++    void NewValue(const QString&);
++
++  public slots:
++    void UpdateDevices(const QString&);
++    void LoadValue(const QString&);
++};
++
++class HavaInputID : public LabelSetting, public CaptureCardDBStorage
++{
++    Q_OBJECT
++
++  public:
++    HavaInputID(const CaptureCard &parent);
++
++    virtual void Load(void);
++
++  signals:
++    void LoadedInput(const QString&);
++
++
++  public slots:
++    void SetInput(const QString&);
++
++  private:
++    QString _input;
++};
++
++class HavaDeviceID : public LabelSetting, public CaptureCardDBStorage
++{
++    Q_OBJECT
++
++  public:
++    HavaDeviceID(const CaptureCard &parent);
++
++    virtual void Load(void);
++    void UpdateValues();
++
++  signals:
++    void LoadedIP(const QString&);
++
++
++  public slots:
++    void SetIP(const QString&);
++
++  private:
++    QString _ip;
++};
++
++class HavaConfigurationGroup: public VerticalConfigurationGroup
++{
++   Q_OBJECT
++
++  public:
++    HavaConfigurationGroup(CaptureCard &parent);
++
++  private:
++    CaptureCard       &parent;
++    HavaDeviceID      *deviceid;
++    HavaInputID      *inputid;
++    HavaSetting       *cardip;
++};
++
+ #endif

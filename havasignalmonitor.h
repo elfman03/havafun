@@ -3,11 +3,11 @@
 #ifndef HAVASIGNALMONITOR_H
 #define HAVASIGNALMONITOR_H
 
-#include "dtvsignalmonitor.h"
+#include "signalmonitor.h"
 
 class HavaChannel;
 
-class HavaSignalMonitor: public DTVSignalMonitor
+class HavaSignalMonitor: public SignalMonitor
 {
   public:
     HavaSignalMonitor(int db_cardnum, HavaChannel* _channel, uint64_t _flags = 0);
