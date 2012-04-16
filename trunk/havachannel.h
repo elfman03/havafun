@@ -7,50 +7,61 @@
 #define HAVACHANNEL_H
 
 #include <QString>
-#include "dtvchannel.h"
+
+#include "tv_rec.h"
+#include "channelbase.h"
 
 using namespace std;
 
-class HavaChannel : public DTVChannel
+class HavaChannel : public ChannelBase
 {
   public:
-    HavaChannel(TVRec *parent): DTVChannel(parent) { 
-           // m_curchannelname.clear(); 
-           // curinputname.clear(); 
-           myopen=false;
-           return; 
+    HavaChannel(const QString &addr, TVRec *parent): ChannelBase(parent) { 
+          (void)parent; 
+          m_curchannelname.clear(); 
+          myopen=false; 
+          myaddr=addr; 
+          return; 
+        }
+    ~HavaChannel(void) { 
+        return; 
     }
-    ~HavaChannel(void) { return; }
 
-    bool IsTunable(const QString &input, const QString &channum) const
-        { return true; }
+    bool IsTunable(const QString &input, const QString &channum) const { 
+      return true; 
+    }
+    virtual bool IsExternalChannelChangeSupported(void) { 
+      return true; 
+    }
 
-    bool Open(void)     { myopen=true; return InitializeInputs(); }
-    void Close(void)    { myopen=false; return; }
+    bool Open(void) { 
+      myopen=true; 
+      return InitializeInputs(); 
+    }
+    void Close(void) { 
+       myopen=false; 
+       return; 
+    }
 
-    virtual bool IsExternalChannelChangeSupported(void) { return true; }
+    bool SetChannelByString(const QString &chan) { 
+       m_curchannelname = chan; 
+       HandleScript(chan /* HACK treat channum as freqid like iptvchannel */ ); 
+       return true; 
+    }
 
-    // Sets
+    bool IsOpen(void) const { 
+      return myopen; 
+    }
+    QString GetDevice(void) const { 
+      return myaddr; 
+    }
+    QString GetCurrentInput(void) const { 
+      return "MPEG2TS"; 
+    }
 
-    // Must use external tuner!
-    virtual bool Tune(const DTVMultiplex&, QString) { return false; }
-
-    // Currently uses the parent tuner functionality
-    // bool SetChannelByString(const QString &chan);
-
-    // Gets
-
-    bool    IsOpen(void)             const { return myopen; }
-    
-    // Currently uses the parent tuner functionality
-    // QString GetDevice(void)          const { return "/dev/hava"; }
-    // QString GetCurrentInput(void)    const { return "MPEG2TS"; }
-    // uint    GetCurrentSourceID(void) const { return 0; }
-
-    private:
-
+  private:
     bool myopen;
-
+    QString myaddr;
 };
 
 #endif

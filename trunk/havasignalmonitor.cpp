@@ -22,7 +22,7 @@
  */
 HavaSignalMonitor::HavaSignalMonitor(
     int db_cardnum, HavaChannel* _channel, uint64_t _flags) :
-    DTVSignalMonitor(db_cardnum, _channel, _flags)
+    SignalMonitor(db_cardnum, _channel, _flags)
 {
     LOG(VB_CHANNEL, LOG_INFO, LOC + "ctor");
     signalStrength.SetThreshold(50);
@@ -45,14 +45,18 @@ HavaSignalMonitor::~HavaSignalMonitor()
  */
 void HavaSignalMonitor::UpdateValues(void)
 {
+    LOG(VB_CHANNEL, LOG_INFO, LOC + "update top");
     if (!running || exit)
         return;
 
+    signalLock.SetValue(true);
     signalStrength.SetValue(50);
+    scriptStatus.SetValue(3);
     EmitStatus();
     if (IsAllGood())
           SendMessageAllGood();
 
     update_done = true;
+    LOG(VB_CHANNEL, LOG_INFO, LOC + "update done");
     return;
 }

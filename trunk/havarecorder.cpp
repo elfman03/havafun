@@ -37,6 +37,7 @@ extern "C" {
 #include "mythlogging.h"
 #include "ringbuffer.h"
 #include "havarecorder.h"
+#include "havachannel.h"
 #include "tv_rec.h"
 
 //#define DEBUGGING_MODE 1
@@ -85,7 +86,7 @@ bool HavaRecorder::Open(void)
       hava=0;
     }
 
-    hava=Hava_alloc("192.168.1.253",1,1,stderr,0);
+    hava=Hava_alloc(qPrintable(channel->GetDevice()),1,1,stderr,0);
     if(Hava_isbound(hava)) {
       Hava_set_bonus(hava, (void *)this);
       Hava_set_videocb(hava, &my_callback);
