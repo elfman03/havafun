@@ -7,8 +7,9 @@ release: dist release_win release_lin
 dist:
 	mkdir dist
 
-release_win: LICENSE.txt hava/RELEASE_NOTES.html hava/example_live.cmd hava/hava_channel.exe hava/hava_channel_nowin.exe hava/hava_info.exe hava/hava_record.exe
-	zip dist/havafun-$(RELEASE)-win.zip LICENSE.txt \
+release_win: LICENSE.txt RELEASE_NOTES.html vulkano/RELEASE_NOTES.html hava/RELEASE_NOTES.html hava/example_live.cmd hava/hava_channel.exe hava/hava_channel_nowin.exe hava/hava_info.exe hava/hava_record.exe
+	zip dist/havafun-$(RELEASE)-win.zip LICENSE.txt RELEASE_NOTES.html \
+	    vulkano/RELEASE_NOTES.html \
 	    hava/RELEASE_NOTES.html \
 	    hava/example_live.cmd \
 	    hava/hava_channel.exe \
@@ -16,8 +17,9 @@ release_win: LICENSE.txt hava/RELEASE_NOTES.html hava/example_live.cmd hava/hava
 	    hava/hava_info.exe \
 	    hava/hava_record.exe
 
-release_lin: LICENSE.txt hava/RELEASE_NOTES.html hava/hava_channel hava/hava_record hava/hava_info hava/example_combined.sh hava/example_live.sh hava/example_record.sh
-	tar -czvf dist/havafun-$(RELEASE)-lin.tar.gz LICENSE.txt \
+release_lin: LICENSE.txt RELEASE_NOTES.html vulkano/RELEASE_NOTES.html hava/RELEASE_NOTES.html hava/hava_channel hava/hava_record hava/hava_info hava/example_combined.sh hava/example_live.sh hava/example_record.sh
+	tar -czvf dist/havafun-$(RELEASE)-lin.tar.gz LICENSE.txt RELEASE_NOTES.html \
+	    vulkano/RELEASE_NOTES.html \
 	    hava/RELEASE_NOTES.html \
 	    hava/hava_channel \
 	    hava/hava_record \

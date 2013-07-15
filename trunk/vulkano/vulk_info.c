@@ -1,5 +1,6 @@
 /*
  * Vulkano HavaFun code component
+ * Code to dump some diagnostic responses from Vulkano
  *
  * Copyright (C) 2009-2013 Chris Elford
  *
@@ -39,3 +40,41 @@
  * carries forward this exception.
  *
  */
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <assert.h>
+#include "vulk_util.h"
+
+Usage() {
+  fprintf(stderr,"Usage:  vulk_info\n");
+  fprintf(stderr,"        NOTE: Exit from all Vulkano client programs before running vulk_info.\n\n");
+#ifdef VSTUDIO
+  fprintf(stderr,"Windows NOTE: Also run \"net stop havasvc\" before running vulk_info.\n");
+  Vulk_finishup();
+#endif
+  exit(1);
+}
+
+main(int argc, char *argv[]) 
+{
+  Vulk *vulk;
+
+  Vulk_startup(stderr);
+
+  if(argc!=1) { Usage(); }
+
+  vulk=Vulk_alloc("-",1,0,stderr,1);
+  if(!Vulk_isbound(vulk)) { 
+    fprintf(stderr,"Error: Could not bind to port 1778 in order to recv()\n");
+    Usage() ; 
+  }
+
+  printf("Watching for info\n");
+
+  Vulk_sendcmd(vulk, HAVA_INIT, 0, 0); 
+  Vulk_loop(vulk,HAVA_MAGIC_INIT,1); 
+
+  Vulk_close(vulk);
+  Vulk_finishup();
+}
