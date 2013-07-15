@@ -685,13 +685,36 @@ void make_exclusive(Vulk *vulk) {
 }
 
 void print_the_buffer(Vulk *vulk,const unsigned char *buf,int len) {
-  int i;
+  int i,j,k;
+  unsigned char ch;
   for(i=0;i<len;) {
-    if(i && !(i%16)) { fprintf(vulk->logfile,"\n"); }
+    if(i && !(i%16)) { 
+      fprintf(vulk->logfile,"  "); 
+      for(j=i-16;j<i;j++) { 
+        ch=buf[j];
+        if((ch<32) || (ch>126)) { ch='.'; }
+        fprintf(vulk->logfile,"%c",ch);
+      }
+      fprintf(vulk->logfile,"\n"); 
+    }
     if(!(i%16)) { fprintf(vulk->logfile,"\t0x%04x: ",i); }
     if(!(i%2)) { fprintf(vulk->logfile," "); }
     fprintf(vulk->logfile,"%02x",buf[i]);
-    if(++i==len) { fprintf(vulk->logfile,"\n"); }
+    if(++i==len) { 
+      k=i%16; 
+      j=0;
+      if(k>0) { k=16-k; }
+      j=2*k+k/2;
+      for(;j;j--) { fprintf(vulk->logfile," "); }
+      fprintf(vulk->logfile,"  "); 
+      k=i%16; if(k==0) { k=16; }
+      for(j=i-k;j<len;j++) {
+        ch=buf[j];
+        if((ch<32) || (ch>126)) { ch='.'; }
+        fprintf(vulk->logfile,"%c",ch);
+      }
+      fprintf(vulk->logfile,"\n"); 
+    }
   }
 }
 
