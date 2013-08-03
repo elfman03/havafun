@@ -492,7 +492,8 @@ int Vulk_loop(Vulk *vulk, unsigned short magic, int verbose) {
         if(verbose) { printpkt=1; }
         done=1;
       }
-      if(len==4 && magic && pkt==magic) {
+      // on hava ack packet is 4; on vulkano ack packet is 8
+      if(len==8 && magic && pkt==magic) {
         done=1;
       }
       if(!done) {
@@ -570,8 +571,9 @@ void Vulk_sendcmd(Vulk *vulk, int cmd, unsigned short eA, unsigned short eB) {
 unsigned short Vulk_remote_aton(const char *name) {
   int hi=0;
   int lo=-1;
-  if(name[0]=='C') { hi=0x01000; }
-  if(name[0]=='S') { hi=0x03000; }
+  if(name[0]=='C') { hi=0x01000; }  // cable
+  if(name[0]=='S') { hi=0x03000; }  // satellite
+  if(name[0]=='Y') { hi=0x06000; }  // toshiba dvd player is this
   if(!hi) { return 0; }
   lo=atoi(&name[1]);
   if((lo<=0)||(lo>0x0fff)) { return 0; }
@@ -588,6 +590,7 @@ char *Vulk_remote_ntoa(unsigned short remote) {
   lo=remote & 0x00fff ;
   if(hi==0x01000) { ch='C'; }
   if(hi==0x03000) { ch='S'; }
+  if(hi==0x06000) { ch='Y'; }
   p=(char*)malloc(16);
   assert(p);
   if(!remote) { 
