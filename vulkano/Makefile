@@ -1,6 +1,6 @@
 RELEASE=PREalpha4
 
-all: vulk_info
+all: vulk_info vulk_channel
 #all: hava_channel hava_record hava_info
 
 #
@@ -13,11 +13,11 @@ vulk_util.o: vulk_util.c vulk_util.h vulk_util_internals.h
 vulk_info: vulk_info.c vulk_util.o
 	gcc -g -o vulk_info vulk_info.c vulk_util.o
 
+vulk_channel: vulk_channel.c vulk_util.o
+	gcc -g -o vulk_channel vulk_channel.c vulk_util.o
+
 hava_record: hava_record.c hava_util.o
 	gcc -g -o hava_record hava_record.c hava_util.o
-
-hava_channel: hava_channel.c hava_util.o
-	gcc -g -o hava_channel hava_channel.c hava_util.o
 
 #
 # Windows
