@@ -573,6 +573,7 @@ unsigned short Vulk_remote_aton(const char *name) {
   int lo=-1;
   if(name[0]=='C') { hi=0x01000; }  // cable
   if(name[0]=='S') { hi=0x03000; }  // satellite
+  if(name[0]=='V') { hi=0x04000; }  // video accessory?
   if(name[0]=='Y') { hi=0x06000; }  // toshiba dvd player is this
   if(!hi) { return 0; }
   lo=atoi(&name[1]);
@@ -590,6 +591,7 @@ char *Vulk_remote_ntoa(unsigned short remote) {
   lo=remote & 0x00fff ;
   if(hi==0x01000) { ch='C'; }
   if(hi==0x03000) { ch='S'; }
+  if(hi==0x04000) { ch='V'; }
   if(hi==0x06000) { ch='Y'; }
   p=(char*)malloc(16);
   assert(p);
