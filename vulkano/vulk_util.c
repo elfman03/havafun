@@ -45,15 +45,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/time.h>
 #include <assert.h>
 
 //#define DEBUG_MODE_MONITOR_BANDWIDTH 1
-//#define DEBUG_MODE 1
-//#define DEBUG_MODE_VERBOSE 1
+#define DEBUG_MODE 1
+#define DEBUG_MODE_VERBOSE 1
 
 #include "vulk_util.h"
 #include "vulk_util_internals.h"
+
+#ifdef VSTUDIO
+#include <sys/timeb.h>
+#else
+#include <sys/time.h>
+#endif
 
 void make_exclusive(Vulk *);
 void make_nonblocking(Vulk *);
@@ -318,7 +323,9 @@ int process_video_packet(Vulk *vulk, int len) {
   //
   // Only two known packet sizes
   //
-  assert(len==1470 || len==406);
+  fprintf(vulk->logfile,"VIDEO PACKET LEN %d starting=%d ooo=%d\n",len,vulk->vid_starting,vulk->vid_ooo);
+  print_the_buffer(vulk,vulk->buf,len);
+  //assert(len==1470 || len==406);
   seq=(fh->seqhi<<8) | (fh->seqlo);
 
   // First time thru, do something special
@@ -331,9 +338,9 @@ int process_video_packet(Vulk *vulk, int len) {
     vulk->vid_stattime=vulk->vid_starttime+60000;
     vulk->vid_minbytes=0;
     vulk->vid_totbytes=0;
-    if(vulk->vid_callback && vulk->vid_header) { 
-      vulk->vid_callback(vulk,vulk->vid_starttime,mpeg_hdr,sizeof(mpeg_hdr)); 
-    }
+    //if(vulk->vid_callback && vulk->vid_header) { 
+    //  vulk->vid_callback(vulk,vulk->vid_starttime,mpeg_hdr,sizeof(mpeg_hdr)); 
+    //}
   }
   //
   // Sequence check
@@ -400,16 +407,21 @@ int process_video_packet(Vulk *vulk, int len) {
   }
   if(vulk->vid_callback) { 
     if(vulk->vid_ooo==1) {
-      if( (&fh->payload)[00]==0x00 && (&fh->payload)[01]==0x00 && 
-          (&fh->payload)[02]==0x01 && (&fh->payload)[03]==0xba &&
-          (&fh->payload)[14]==0x00 && (&fh->payload)[15]==0x00 && 
-          (&fh->payload)[16]==0x01) 
+      //if( (&fh->payload)[00]==0x00 && (&fh->payload)[01]==0x00 && 
+      //    (&fh->payload)[02]==0x01 && (&fh->payload)[03]==0xba &&
+      //    (&fh->payload)[14]==0x00 && (&fh->payload)[15]==0x00 && 
+      //    (&fh->payload)[16]==0x01) 
+      if( (&fh->payload)[8] ==0x00 && (&fh->payload)[9] ==0x00 && 
+          (&fh->payload)[10]==0x05 && (&fh->payload)[11]==0xdd &&
+          (&fh->payload)[28]==0x00 && (&fh->payload)[29]==0x00 && 
+          (&fh->payload)[30]==0x00 && (&fh->payload)[31]==0x01) 
       {
         vulk->vid_ooo=0;
       }
     }
     if(vulk->vid_ooo==0) {
-      vulk->vid_callback(vulk,now,&fh->payload,len-16); 
+      //vulk->vid_callback(vulk,now,&fh->payload,len-16); 
+      vulk->vid_callback(vulk,now,&(&fh->payload)[28],len-(16+28)); 
     }
   }
   return retval;

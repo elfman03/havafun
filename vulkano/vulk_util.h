@@ -51,6 +51,8 @@
 #define MSLEEP(a) Sleep(a)
 #define CLOSE(a) closesocket(a)
 #include <winsock2.h>
+#include <ws2tcpip.h>
+#include <Ws2ipdef.h>
 #include <windows.h>
 #include <winbase.h>
 #else
