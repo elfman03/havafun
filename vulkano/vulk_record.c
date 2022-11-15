@@ -45,11 +45,32 @@
 #include <assert.h>
 #include "vulk_util.h"
 
-FILE *gof;
+FILE *gofV;
+FILE *gofA;
 
-void my_callback(Vulk *vulk,unsigned long now,const unsigned char *buf,int len) {
-  int b;
-  b=fwrite(buf,len,1,gof);
+void my_callback(Vulk *vulk,unsigned long now,const unsigned char *buf,int len, int frame_type) {
+  int b=1;
+  char bb[16];
+  //b=fwrite(buf,len,1,gofA);
+  /**/
+  if(frame_type==0) {
+    //if(gofA) { b=fwrite(buf,len,1,gofA); }
+    bb[0]=0xff;  // 1111 1111
+    bb[1]=0xf9;  // 1111 1001
+    bb[2]=0x00;  // 0000 0000
+    bb[3]=0x00;  // 0000 0000
+    bb[4]=0x00;  // 0000 0000
+    bb[5]=0x00;  // 0000 0000
+    bb[6]=0x00;  // 0000 0000
+    if(gofA) { b=fwrite(&bb[0],7,1,gofA); }
+  }
+  if(frame_type==2) {
+    if(gofA) { b=fwrite(buf,len,1,gofA); } 
+  }
+  if(frame_type==3) {
+    b=fwrite(buf,len,1,gofV);
+  }
+  /**/
 
   if(b!=1) {
     fprintf(stderr,"vulk_record write failed... finalizing capture shortly...\n");
@@ -67,7 +88,8 @@ Usage() {
   fprintf(stderr,"                    Recommend >=0x10 (0x01-0x03 don't work for me at all)\n");
   fprintf(stderr,"                    Use 0x00 for broken auto-heuristic (lowish quality: ~0x0a)\n");
   fprintf(stderr,"      {duration}    is expressed in seconds.  Zero means go forever\n");
-  fprintf(stderr,"      {tgt_mpeg}    is a file name that will be written\n\n");
+  fprintf(stderr,"      {tgt_mpegV}   is a video file name that will be written\n\n");
+  fprintf(stderr,"      {tgt_mpegA}   is a audio file name that will be written\n\n");
   fprintf(stderr,"NOTE: If you use '-' for the <tgt_mpg>, it will send the output to stdout\n");
   fprintf(stderr,"      This is recommended for piping into mplayer/mencoder\n\n");
   fprintf(stderr,"NOTE: If you use '-' for the ipaddr, it will try to autodetect\n");
@@ -84,7 +106,7 @@ main(int argc, char *argv[]) {
 
   Vulk_startup(stderr);
 
-  if(argc!=5) { Usage(); }
+  if(argc!=6) { Usage(); }
 
   //
   // Handle the quality parameter
@@ -105,15 +127,18 @@ main(int argc, char *argv[]) {
     if(!isatty(tmp))
     _setmode(tmp,_O_BINARY);
 #endif
-    gof=stdout;
+    gofV=stdout;
+    gofA=NULL;
   } else {
-    gof=fopen(argv[4],"wb");
+    gofV=fopen(argv[4],"wb");
+    gofA=fopen(argv[5],"wb");
   }
-  assert(gof);
+  assert(gofV);
 
   vulk=Vulk_alloc(argv[1],1,1,stderr,0);
   assert(Vulk_isbound(vulk));
   Vulk_set_videocb(vulk, &my_callback);
+  Vulk_set_videoheader(vulk, 1);
   Vulk_set_videoquality(vulk, quality);
 
   // zero second tis means go forever (no set of endtime)
@@ -135,7 +160,8 @@ main(int argc, char *argv[]) {
   Vulk_sendcmd(vulk, HAVA_START_VIDEO, 0, 0); 
   Vulk_loop(vulk,HAVA_MAGIC_RECORD,0);
 
-  fclose(gof);
+  fclose(gofV);
+  if(gofA) { fclose(gofA); }
 
   Vulk_close(vulk);
   Vulk_finishup();

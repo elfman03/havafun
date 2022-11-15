@@ -91,7 +91,7 @@ typedef struct Vulk {
 
   // vulk_util calls this w/pkts
   void (*vid_callback)(struct Vulk *vulk, unsigned long now,
-                       const unsigned char *buf, int len);  
+                       const unsigned char *buf, int len, int frame_type);  
 } Vulk;
 
 // input  --  Target Vulkano device IP or "-"
@@ -153,7 +153,7 @@ extern unsigned long Vulk_get_videoendtime(Vulk *vulk);
 //
 extern void Vulk_set_videocb(Vulk *vulk, 
                              void (*vcb)(Vulk *vulk, unsigned long now,
-                                         const unsigned char *buf,int len));
+                                         const unsigned char *buf,int len, int frame_type));
 
 //
 // Returns the current time in milliseconds (for computing a record endtime)

@@ -53,7 +53,8 @@ typedef struct FrameHeader {
   unsigned short s8;
   unsigned char  next_time_desired; // Desired number of continuation slots
   unsigned char  stream_remaining;  // cntdown to 0 then send continue packet
-  unsigned short c12;
+  unsigned char frame_type;         // 1 = continuation
+  unsigned char frame_cont;         // 3 = video, 2= audio
   unsigned short c14;
   unsigned char  payload;           // the payload starts here
 } FrameHeader ;
